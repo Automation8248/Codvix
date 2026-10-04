@@ -2,29 +2,26 @@ name: Multi-Repo Image Sync Automation
 
 on:
   schedule:
-    - cron: '0 4 * * *' # Daily subah 4 baje (UTC) run hoga
-  workflow_dispatch: # Manual trigger button
+    - cron: '0 4 * * *' 
+  workflow_dispatch: 
 
 jobs:
   cross-repo-sync:
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Current Repository (Source) Checkout karna
       - name: Checkout Source Repository
         uses: actions/checkout@v3
         with:
           token: ${{ secrets.GH_TOKEN }}
 
-      # Step 2: Target Repository (Postza) Checkout karna (PicSync folder ke andar)
       - name: Checkout Target Repository (Postza)
         uses: actions/checkout@v3
         with:
           repository: 'Automation8248/Postza'
-          path: 'PicSync/Postza' # Postza ko PicSync ke andar clone karega
+          path: 'PicSync/Postza' 
           token: ${{ secrets.GH_TOKEN }}
 
-      # Step 3: Python setup
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
@@ -34,13 +31,11 @@ jobs:
         run: |
           pip install requests
 
-      # Step 4: Run the Script (PicSync folder ke andar jaakar)
       - name: Run Downloader Script
         run: |
           cd PicSync
           python main.py
 
-      # Step 5: Upload images to Target Repository (Postza)
       - name: Commit & Push to Postza (Target)
         run: |
           cd PicSync/Postza
@@ -50,12 +45,12 @@ jobs:
           git commit -m "Auto-synced new images to RadhaSocialSync" || echo "No images to push in Target"
           git push
 
-      # Step 6: Update history.json in Source Repository
       - name: Commit & Push History to Source
         run: |
-          # Wapas main folder me aakar Source repo me history update karega
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action Bot"
+          # Dono files add hongi (JSON logic ke liye, TXT links ke liye)
           git add PicSync/history.json
-          git commit -m "Auto-updated history.json state" || echo "No history updates"
+          git add PicSync/history.txt
+          git commit -m "Auto-updated history files (JSON & TXT)" || echo "No history updates"
           git push
