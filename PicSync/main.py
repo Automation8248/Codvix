@@ -132,7 +132,8 @@ def get_topics():
         print("search.txt file nahi mili!")
         return []
     with open(SEARCH_FILE, "r", encoding="utf-8") as f:
-        return [line.strip() for line in file.readlines() if line.strip()]
+        # ERROR FIXED HERE: file.readlines() ki jagah f.readlines()
+        return [line.strip() for line in f.readlines() if line.strip()]
 
 def fetch_and_download():
     history = load_history()
