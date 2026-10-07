@@ -83,7 +83,7 @@ def save_tracked_link(link):
         with open(TRACK_FILE, "w") as f:
             json.dump(tracked, f, indent=4)
 
-# Yahan 6 to 10 seconds ka strict delay fix kiya gaya hai
+# Har baar 6 se 10 second ka lamba delay
 async def human_delay():
     delay = random.uniform(6.0, 10.0)
     await asyncio.sleep(delay)
@@ -92,7 +92,7 @@ def get_username(url):
     match = re.search(r'instagram\.com/([^/]+)/', url)
     return match.group(1) if match else "unknown_user"
 
-# Upload to ShreeCloud synchronously (runs in a separate thread so video recording doesn't freeze)
+# Upload to ShreeCloud synchronously
 def upload_to_shreecloud_sync(file_path, username):
     if not API_KEY:
         return False, "API Key Missing"
@@ -107,13 +107,13 @@ def upload_to_shreecloud_sync(file_path, username):
     except Exception as e:
         return False, str(e)
 
-async def process_link(context, link, index):
+async def process_link(context, link):
     page = await context.new_page()
     await stealth_async(page)
     username = get_username(link)
     
     try:
-        print(f"Tab {index + 1} processing link for {username}...")
+        print(f"Processing single link for username: {username}")
         
         # Action 1: Goto Website
         await page.goto("https://igcomment.com/instagram-reel-downloader/", timeout=60000)
@@ -180,9 +180,7 @@ async def process_link(context, link, index):
         # Action 13: Delay after save
         await human_delay() # Delay 13
         
-        # ============================================================
         # VISUAL RECORDING OF UPLOAD PROCESS (Injecting UI on webpage)
-        # ============================================================
         ui_script_start = """
         () => {
             let el = document.createElement('div');
@@ -193,15 +191,14 @@ async def process_link(context, link, index):
         }
         """
         await page.evaluate(ui_script_start)
-        await human_delay() # Delay 14 (Lets the recording clearly show the "Uploading" message)
+        await human_delay() # Delay 14
         
-        # Run upload in background thread so Playwright event loop keeps recording frames
+        # Run upload in background thread
         success, msg = await asyncio.to_thread(upload_to_shreecloud_sync, file_path, username)
         
         # Action 15: Post Upload Delay
         await human_delay() # Delay 15
         
-        # Update UI with Success/Failure Result
         if success:
             ui_script_end = """() => { document.getElementById('upload-status-overlay').innerHTML = '✅ <b>System Status:</b> Upload Successful!<br><span style="font-size:20px; color:lime; margin-top:10px; display:block;">Video saved to folder: %s</span>'; }""" % username
         else:
@@ -209,10 +206,10 @@ async def process_link(context, link, index):
             
         await page.evaluate(ui_script_end)
         
-        # Action 16: Let the success message stay on screen for the video
+        # Action 16: Let the success message stay on screen
         await human_delay() # Delay 16
         
-        # Action 17: Final scroll or movement before closing
+        # Action 17: Final scroll
         await page.mouse.wheel(0, 500)
         await human_delay() # Delay 17
         
@@ -243,7 +240,10 @@ async def main():
         print("No new links to process. All links in link.txt are already downloaded.")
         return
 
-    batch_size = 20
+    # ONLY SELECT THE FIRST UNPROCESSED LINK
+    target_link = links[0]
+    print(f"Target link selected for this run: {target_link}")
+
     is_manual_run = os.environ.get("IS_MANUAL_RUN") == "true"
     record_dir = "recordings/" if is_manual_run else None
 
@@ -253,30 +253,25 @@ async def main():
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
 
-        for i in range(0, len(links), batch_size):
-            batch_links = links[i:i+batch_size]
-            contexts = []
-            
-            for _ in range(len(batch_links)):
-                context = await browser.new_context(
-                    user_agent=random.choice(USER_AGENTS), 
-                    viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)},
-                    record_video_dir=record_dir
-                )
-                contexts.append(context)
+        # ONE Agent Randomly selected
+        random_agent = random.choice(USER_AGENTS)
+        print(f"Randomly selected User-Agent: {random_agent}")
 
-            for index, link in enumerate(batch_links):
-                # Action 20: Pre-tab delay
-                await human_delay() # Delay 20
-                await process_link(contexts[index], link, index)
-            
-            for context in contexts:
-                await context.close()
-            
-            print(f"Batch {i//batch_size + 1} Completed.")
-            await human_delay() # Batch completion delay
-            
+        # Open ONE Context
+        context = await browser.new_context(
+            user_agent=random_agent, 
+            viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)},
+            record_video_dir=record_dir
+        )
+
+        # Process ONE Link
+        await human_delay() # Delay 20 (Pre-tab open delay)
+        await process_link(context, target_link)
+        
+        # Close everything
+        await context.close()
         await browser.close()
+        print("Run Complete.")
 
 if __name__ == "__main__":
     asyncio.run(main())
