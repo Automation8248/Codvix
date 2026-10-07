@@ -3,23 +3,23 @@ name: IG to ShreeCloud Auto-Uploader
 on:
   schedule:
     - cron: '*/15 * * * *'  # Har 15 minute me run karega
-  workflow_dispatch:
+  workflow_dispatch:        # Manually run karne ke liye
 
 permissions:
-  contents: write
+  contents: write           # track.json ko repo me wapas save karne ke liye permission
 
 jobs:
   automation:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-22.04   # Playwright dependency errors se bachne ke liye fixed version
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4   # <-- Updated to v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5  # <-- Updated to v5
         with:
           python-version: '3.10'
 
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload Screen Recordings (If Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4  # <-- ERROR FIXED (Changed v3 to v4)
         with:
           name: screen-recordings
           path: InstaGrab/recordings/
@@ -58,9 +58,12 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          # Error Fix: Ensure track.json exists before adding to git
+          
+          # Git pathspec error fix: Git add se pehle ensure karna ki file create ho chuki hai
           touch InstaGrab/track.json
+          
           git add InstaGrab/track.json
+          
           if ! git diff-index --quiet HEAD; then
             git commit -m "chore: Update track.json with newly downloaded reels [skip ci]"
             git push
