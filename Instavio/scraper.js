@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Apne Session ID yahan set karein (Environment variable se ya direct)
-const SESSION_ID = process.env.IG_SESSION_ID || '80592166108%3AO1XlkbG20p1jzK%3A23%3AAYkIwM3q0T5Eoul4Lr9H1AKKys1t2aMYmixUc-w2Xw';
+const SESSION_ID = process.env.IG_SESSION_ID || '';
 
 // Human-like delay function
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
