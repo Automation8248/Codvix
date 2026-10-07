@@ -1,9 +1,9 @@
-name: Insta video downloader 👍👍👍
+name: Instavio Anti-Detect Scraper
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *' # Har raat chalega, par sirf 1 user process karega
+    - cron: '0 2 * * *' # Har raat chalega
 
 permissions:
   contents: write
@@ -22,16 +22,16 @@ jobs:
         with:
           node-version: '18'
 
-      - name: 📦 Install Playwright
+      - name: 📦 Install Playwright & Stealth Plugins
         working-directory: ./Instavio
         run: |
-          npm install playwright
+          npm install playwright playwright-extra puppeteer-extra-plugin-stealth
           npx playwright install --with-deps chromium
 
-      - name: 🚀 Run Playwright Scraper
+      - name: 🚀 Run Stealth Scraper
         working-directory: ./Instavio
         env:
-          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }} # Secret variable injection
+          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
         run: node scraper.js
 
       - name: 🎥 Upload Screen Recording (Artifact)
@@ -46,7 +46,6 @@ jobs:
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          # video.txt aur track.json ko update karke wapas save karega
           git add Instavio/*/video.txt Instavio/track.json
           git commit -m "Auto-update tracked user data and video URLs" || echo "No new links to commit"
           git push
