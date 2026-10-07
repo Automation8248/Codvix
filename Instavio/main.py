@@ -1,9 +1,15 @@
 #!/usr/bin/env python3
+"""
+Instavio - Instagram Video Downloader with Elite Cloud Upload
+Compatible with Instaloader 4.15.3+
+"""
+
 import os
 import sys
 import subprocess
 import logging
 from pathlib import Path
+from datetime import datetime
 
 import requests
 from dotenv import load_dotenv
@@ -27,19 +33,12 @@ def ensure_instaloader():
         return True
     except Exception:
         logger.info("Installing instaloader...")
-        subprocess.check_call([
-            sys.executable,
-            "-m",
-            "pip",
-            "install",
-            "--upgrade",
-            "instaloader"
-        ])
+        subprocess.check_call([sys.executable, "-m", "pip", "install", "--upgrade", "instaloader"])
         return True
 
 def upload_to_elite_cloud(username: str, api_key: str):
     if not api_key:
-        logger.warning("ELITE_CLOUD_API_KEY not set. Skipping upload.")
+        logger.warning("ELITE_CLOUD_API_KEY not set. Skipping cloud upload.")
         return
 
     headers = {"X-API-Key": api_key}
@@ -49,14 +48,14 @@ def upload_to_elite_cloud(username: str, api_key: str):
     files = []
     if target_dir.exists():
         for file in target_dir.iterdir():
-            if file.is_file():
+            if file.is_file() and file.suffix.lower() in [".mp4", ".mkv", ".mov", ".webm"]:
                 files.append(file)
 
     if not files:
         logger.warning("No downloaded videos found to upload.")
         return
 
-    logger.info(f"Uploading {len(files)} video(s) to Elite Cloud folder: {folder_path}")
+    logger.info(f"Uploading {len(files)} videos to Elite Cloud folder: {folder_path}")
 
     for file_path in files:
         try:
@@ -68,9 +67,8 @@ def upload_to_elite_cloud(username: str, api_key: str):
                     data={"path": folder_path},
                     timeout=300
                 )
-
             if response.ok:
-                logger.info(f"Uploaded successfully: {file_path.name}")
+                logger.info(f"Uploaded: {file_path.name}")
             else:
                 logger.error(f"Upload failed for {file_path.name}: {response.status_code} - {response.text}")
         except Exception as e:
@@ -86,10 +84,8 @@ def download_user_videos(username: str, api_key: str = None):
     logger.info(f"Target folder: {target_dir}")
 
     loader = Instaloader(
-        download_video_only=True,
         download_comments=False,
-        download_geotags=False,
-        filename_pattern="{date_utc}_{shortcode}"
+        download_geotags=False
     )
 
     try:
@@ -117,7 +113,6 @@ def download_user_videos(username: str, api_key: str = None):
 
 def main():
     username = None
-
     if len(sys.argv) > 1:
         username = sys.argv[1].strip()
     else:
@@ -129,6 +124,11 @@ def main():
 
     api_key = os.getenv("ELITE_CLOUD_API_KEY")
     success = download_user_videos(username, api_key)
+
+    if success:
+        logger.info("Execution completed successfully")
+    else:
+        logger.error("Execution failed")
 
     sys.exit(0 if success else 1)
 
