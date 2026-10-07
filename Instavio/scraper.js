@@ -1,4 +1,4 @@
-// 👉 NAYA LOGIC: Playwright Extra aur Stealth Plugin (Anti-Detect Browser)
+// 👉 Anti-Detect Browser (Playwright Extra + Stealth Plugin)
 const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 chromium.use(stealth);
@@ -6,10 +6,15 @@ chromium.use(stealth);
 const fs = require('fs');
 const path = require('path');
 
-// Apne Session ID yahan set karein (Environment variable se ya direct)
-const SESSION_ID = process.env.IG_SESSION_ID || 'AAPKA_SESSION_ID_YAHAN_DALEIN';
+// 🔐 SESSION ID from GitHub Secrets
+const SESSION_ID = process.env.IG_SESSION_ID;
 
-// 👉 NAYA LOGIC: True Random Delay Function (Millisecond accuracy)
+if (!SESSION_ID) {
+    console.error("❌ ERROR: GitHub Secrets se IG_SESSION_ID nahi mila!");
+    process.exit(1);
+}
+
+// ⏳ True Random Delay Functions (Millisecond accuracy)
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const randomSleep = (min, max) => sleep(Math.floor(Math.random() * (max - min + 1) + min));
 
@@ -18,8 +23,9 @@ async function startScraping() {
     const usernamesFile = path.join(instavioDir, 'usernames.txt');
     const trackFile = path.join(instavioDir, 'track.json'); 
 
+    // Auto-create tracking file if missing
     if (!fs.existsSync(usernamesFile)) {
-        console.log("❌ usernames.txt nahi mili!");
+        console.log("❌ usernames.txt nahi mili! File create karke username add karein.");
         return;
     }
     
@@ -39,12 +45,12 @@ async function startScraping() {
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // 👉 NAYA LOGIC: Har run mein sirf EK (1) eligible username select hoga
+    // 🕒 1 Day = 1 Username Logic (30 Days Cooldown check)
     for (const username of usernames) {
         if (trackData[username] && trackData[username].last_processed) {
             const timePassed = now - new Date(trackData[username].last_processed).getTime();
             if (timePassed < THIRTY_DAYS_MS) {
-                continue; // 30 din nahi hue, agla check karo
+                continue; // 30 din nahi hue, skip and check next user
             }
         }
         // Eligible user mil gaya!
@@ -61,6 +67,7 @@ async function startScraping() {
     console.log(`🎯 Aaj ka Target Selected: ${targetUsername} (Only 1 user for today)`);
     console.log("🚀 Starting Stealth Browser Automation (Anti-Detect Mode)...");
 
+    // 📁 Auto-create User Folder & video.txt
     const userFolder = path.join(instavioDir, targetUsername);
     if (!fs.existsSync(userFolder)) fs.mkdirSync(userFolder, { recursive: true });
 
@@ -80,15 +87,25 @@ async function startScraping() {
         args: ['--disable-blink-features=AutomationControlled'] 
     });
 
-    // 🎥 2. Screen Recording Set Karna
-    const context = await browser.newContext({
+    // 🎥 2. Conditional Screen Recording Logic (Auto Run = Off, Manual Run = On)
+    const isManualRun = process.env.RECORD_VIDEO === 'true'; // YML file se value aayegi
+    
+    const contextOptions = {
         viewport: { width: 1280, height: 720 },
-        recordVideo: { 
+        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    };
+
+    if (isManualRun) {
+        console.log("🎥 Manual Run Detected: Screen Recording is ON.");
+        contextOptions.recordVideo = { 
             dir: userFolder,
             size: { width: 1280, height: 720 }
-        },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    });
+        };
+    } else {
+        console.log("⚡ Auto Run Detected: Screen Recording is OFF (Saving resources and space).");
+    }
+
+    const context = await browser.newContext(contextOptions);
 
     // 🍪 Session Cookie Inject Karna
     await context.addCookies([{
@@ -138,7 +155,7 @@ async function startScraping() {
         await randomSleep(4230, 6890); // 4 se almost 7 sec ka random wait
 
         // 6. Scroll down and LIVE COPY Video URLs
-        console.log("📜 Starting live scrolling and extracting...");
+        console.log("📜 Starting live scrolling and extracting URLs...");
         let previousHeight = 0;
         let currentHeight = await page.evaluate(() => document.body.scrollHeight);
         
@@ -156,15 +173,17 @@ async function startScraping() {
 
             let newlyAdded = 0;
             for (const link of linksOnPage) {
+                // Check agar URL purane month wali history mein hai
                 if (oldSavedLinks.has(link)) {
-                    console.log(`🛑 Old video found! (${link}). Pehle wali video aa gayi hai.`);
+                    console.log(`🛑 Old video found! (${link}). Stoping scroll. 30 Days Limit Reached.`);
                     reachedOldVideo = true;
                     break;
                 }
 
+                // Check agar naya URL iss session me abhi tak copy nahi hua hai
                 if (!copiedLinks.has(link)) {
                     copiedLinks.add(link);
-                    fs.appendFileSync(videoTxtPath, `${link}\n`); // Live save
+                    fs.appendFileSync(videoTxtPath, `${link}\n`); // Live save to txt
                     newlyAdded++;
                     totalCopied++;
                 }
@@ -192,20 +211,21 @@ async function startScraping() {
         fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
         console.log(`📝 track.json updated. Next run for this user after 30 days.`);
 
-        // 👉 NAYA LOGIC: Final Random Sleep Profile (1 to 3.2 Minutes) taaki pattern break ho jaye
+        // 👉 NAYA LOGIC: Final Random Sleep Profile (1 to 3.2 Minutes) taaki Instagram AI pattern na pakad sake
         const endDelayProfiles = [
             62000, 75000, 88000, 94000, 105000, 112000, 126000, 133000, 142000, 151000,
             159000, 168000, 175000, 182000, 191000, 192000, 83000, 119000, 137000, 148000
-        ]; // 20 different time delays (milliseconds me)
+        ]; // 20 different time delays
         
-        // In 20 time me se koi ek random time chune ga
         const finalRandomDelay = endDelayProfiles[Math.floor(Math.random() * endDelayProfiles.length)];
         
-        console.log(`\n💤 Human Final Break: Bot will rest for ${(finalRandomDelay / 1000 / 60).toFixed(2)} minutes before closing completely (to spoof total run time).`);
+        console.log(`\n💤 Human Final Break: Bot will rest for ${(finalRandomDelay / 1000 / 60).toFixed(2)} minutes before closing completely.`);
         await sleep(finalRandomDelay);
 
         await context.close();
-        console.log(`🎥 Screen Recording saved in ${targetUsername} folder (as .webm file).`);
+        if (isManualRun) {
+            console.log(`🎥 Screen Recording saved in ${targetUsername} folder (as .webm file).`);
+        }
 
     } catch (error) {
         console.error(`❌ Error during automation for ${targetUsername}:`, error.message);
