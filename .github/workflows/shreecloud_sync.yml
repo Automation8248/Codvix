@@ -1,0 +1,68 @@
+name: IG to ShreeCloud Auto-Uploader
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # track.json ko wapas repo me save karne ke liye permission
+
+jobs:
+  automation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          cd InstaGrab
+          pip install -r requirements.txt
+          playwright install chromium
+          playwright install-deps
+
+      - name: Determine Trigger Type for Recording
+        id: check_trigger
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "IS_MANUAL_RUN=true" >> $GITHUB_ENV
+          else
+            echo "IS_MANUAL_RUN=false" >> $GITHUB_ENV
+          fi
+
+      - name: Run Automation Script
+        env:
+          ELITE_CLOUD_API_KEY: ${{ secrets.ELITE_CLOUD_API_KEY }}
+        run: |
+          cd InstaGrab
+          python main.py
+
+      - name: Upload Screen Recordings (If Manual)
+        if: ${{ github.event_name == 'workflow_dispatch' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: screen-recordings
+          path: InstaGrab/recordings/
+          retention-days: 3
+
+      - name: Save track.json back to Repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add InstaGrab/track.json
+          # Check karega agar track.json me koi naya update hua hai ya nahi
+          if ! git diff-index --quiet HEAD; then
+            git commit -m "chore: Update track.json with newly downloaded reels [skip ci]"
+            git push
+          else
+            echo "No new URLs tracked. Skipping commit."
+          fi
