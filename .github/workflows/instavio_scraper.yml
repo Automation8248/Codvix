@@ -1,9 +1,9 @@
 name: Instavio Anti-Detect Scraper
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Manual button dabane par
   schedule:
-    - cron: '0 2 * * *' # Har raat chalega
+    - cron: '0 2 * * *' # Auto run (Har raat)
 
 permissions:
   contents: write
@@ -32,11 +32,14 @@ jobs:
         working-directory: ./Instavio
         env:
           IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
+          # 👉 NAYA LOGIC: Agar manually run hua hai, toh RECORD_VIDEO ki value 'true' hogi, warna 'false'
+          RECORD_VIDEO: ${{ github.event_name == 'workflow_dispatch' }}
         run: node scraper.js
 
       - name: 🎥 Upload Screen Recording (Artifact)
         uses: actions/upload-artifact@v4
-        if: always() 
+        # 👉 NAYA LOGIC: Yeh upload step SIRF tabhi chalega jab aapne manual run kiya hoga (workflow_dispatch)
+        if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: instavio-screen-recordings
           path: Instavio/**/*.webm
