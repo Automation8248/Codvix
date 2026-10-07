@@ -7,11 +7,10 @@ import json
 from playwright.async_api import async_playwright
 from playwright_stealth import stealth_async
 
-# Secure API Key fetching from environment (GitHub Secrets)
 API_KEY = os.environ.get("ELITE_CLOUD_API_KEY")
 UPLOAD_URL = "https://shreecloud.up.railway.app/api/v1/upload"
 
-# 50+ Hardcoded Diverse User-Agents (Windows, Mac, Linux, Android, iOS)
+# 50+ Hardcoded Diverse User-Agents
 USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -84,35 +83,29 @@ def save_tracked_link(link):
         with open(TRACK_FILE, "w") as f:
             json.dump(tracked, f, indent=4)
 
-async def human_delay(min_sec, max_sec):
-    delay = random.uniform(min_sec, max_sec)
+# Yahan 6 to 10 seconds ka strict delay fix kiya gaya hai
+async def human_delay():
+    delay = random.uniform(6.0, 10.0)
     await asyncio.sleep(delay)
 
 def get_username(url):
     match = re.search(r'instagram\.com/([^/]+)/', url)
     return match.group(1) if match else "unknown_user"
 
-def upload_to_shreecloud(file_path, username):
+# Upload to ShreeCloud synchronously (runs in a separate thread so video recording doesn't freeze)
+def upload_to_shreecloud_sync(file_path, username):
     if not API_KEY:
-        print("Error: ELITE_CLOUD_API_KEY environment variable is not set!")
-        return False
-        
-    print(f"[{username}] Uploading to ShreeCloud...")
+        return False, "API Key Missing"
     headers = {"X-API-Key": API_KEY}
     files = {'file': (os.path.basename(file_path), open(file_path, 'rb'), 'video/mp4')}
     data = {'folder': username}
-    
     try:
         response = requests.post(UPLOAD_URL, headers=headers, files=files, data=data)
         if response.status_code == 200:
-            print(f"[{username}] Upload Success!")
-            return True
-        else:
-            print(f"[{username}] Upload Failed. Status: {response.status_code}")
-            return False
+            return True, "Success"
+        return False, f"Failed: {response.status_code}"
     except Exception as e:
-        print(f"[{username}] Upload Error: {e}")
-        return False
+        return False, str(e)
 
 async def process_link(context, link, index):
     page = await context.new_page()
@@ -122,50 +115,118 @@ async def process_link(context, link, index):
     try:
         print(f"Tab {index + 1} processing link for {username}...")
         
+        # Action 1: Goto Website
         await page.goto("https://igcomment.com/instagram-reel-downloader/", timeout=60000)
-        await human_delay(3.0, 5.0)
+        await human_delay() # Delay 1
         
+        # Action 2: Fake Scrolling
+        await page.mouse.wheel(0, random.randint(300, 700))
+        await human_delay() # Delay 2
+        
+        # Action 3: Random Mouse Movement
         await page.mouse.move(random.randint(100, 500), random.randint(100, 500))
-        await human_delay(0.5, 1.5)
+        await human_delay() # Delay 3
+        
+        # Action 4: Scrolling back up
+        await page.mouse.wheel(0, -random.randint(200, 500))
+        await human_delay() # Delay 4
 
         input_selector = "input[name='url'], input[type='text'], input[placeholder*='Instagram']" 
         await page.wait_for_selector(input_selector)
+        
+        # Action 5: Hover over input
+        await page.hover(input_selector)
+        await human_delay() # Delay 5
+        
+        # Action 6: Click input
         await page.click(input_selector)
-        await human_delay(1.0, 2.0)
+        await human_delay() # Delay 6
         
+        # Action 7: Type link slowly
         await page.fill(input_selector, link)
-        await human_delay(2.0, 4.0)
+        await human_delay() # Delay 7
         
+        # Action 8: Move mouse to submit button
         submit_btn = "button[type='submit'], button:has-text('Download')"
-        await page.click(submit_btn)
+        await page.hover(submit_btn)
+        await human_delay() # Delay 8
         
-        await human_delay(3.0, 4.0)
+        # Action 9: Click submit
+        await page.click(submit_btn)
+        await human_delay() # Delay 9
+        
+        # Action 10: Wait for processing
+        await human_delay() # Delay 10
 
         download_btn = "a[download], a:has-text('Download Video')"
         await page.wait_for_selector(download_btn, timeout=30000)
         
+        # Action 11: Hover over Download button
+        await page.hover(download_btn)
+        await human_delay() # Delay 11
+        
+        # Action 12: Click Download and catch event
         async with page.expect_download() as download_info:
             await page.click(download_btn)
-            
+        
+        await human_delay() # Delay 12
         download = await download_info.value
         
         os.makedirs(f"downloads/{username}", exist_ok=True)
         file_path = f"downloads/{username}/video_{random.randint(1000,9999)}.mp4"
         
         await download.save_as(file_path)
-        await human_delay(1.5, 3.5)
         
-        upload_success = upload_to_shreecloud(file_path, username)
+        # Action 13: Delay after save
+        await human_delay() # Delay 13
         
-        # Track file updated only on successful upload
-        if upload_success:
+        # ============================================================
+        # VISUAL RECORDING OF UPLOAD PROCESS (Injecting UI on webpage)
+        # ============================================================
+        ui_script_start = """
+        () => {
+            let el = document.createElement('div');
+            el.id = 'upload-status-overlay';
+            el.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999999; background:rgba(0,0,0,0.9); color:white; padding:40px; border-radius:15px; font-size:30px; text-align:center; box-shadow: 0 0 20px rgba(255,255,255,0.5); font-family:sans-serif; width: 80%;';
+            el.innerHTML = '⏳ <b>System Status:</b> Uploading to ShreeCloud<br><span style="font-size:20px; color:yellow; margin-top:10px; display:block;">Please wait... Uploading in backend.</span>';
+            document.body.appendChild(el);
+        }
+        """
+        await page.evaluate(ui_script_start)
+        await human_delay() # Delay 14 (Lets the recording clearly show the "Uploading" message)
+        
+        # Run upload in background thread so Playwright event loop keeps recording frames
+        success, msg = await asyncio.to_thread(upload_to_shreecloud_sync, file_path, username)
+        
+        # Action 15: Post Upload Delay
+        await human_delay() # Delay 15
+        
+        # Update UI with Success/Failure Result
+        if success:
+            ui_script_end = """() => { document.getElementById('upload-status-overlay').innerHTML = '✅ <b>System Status:</b> Upload Successful!<br><span style="font-size:20px; color:lime; margin-top:10px; display:block;">Video saved to folder: %s</span>'; }""" % username
+        else:
+            ui_script_end = """() => { document.getElementById('upload-status-overlay').innerHTML = '❌ <b>System Status:</b> Upload Failed!<br><span style="font-size:20px; color:red; margin-top:10px; display:block;">Error: %s</span>'; }""" % msg
+            
+        await page.evaluate(ui_script_end)
+        
+        # Action 16: Let the success message stay on screen for the video
+        await human_delay() # Delay 16
+        
+        # Action 17: Final scroll or movement before closing
+        await page.mouse.wheel(0, 500)
+        await human_delay() # Delay 17
+        
+        if success:
             save_tracked_link(link)
 
     except Exception as e:
         print(f"Error processing link {link}: {e}")
     finally:
+        # Action 18: Delay before context closes
+        await human_delay() # Delay 18
         await page.close()
-        await human_delay(1.0, 3.0)
+        # Action 19: Final pause
+        await human_delay() # Delay 19
 
 async def main():
     if not os.path.exists("link.txt"):
@@ -175,7 +236,6 @@ async def main():
     with open("link.txt", "r") as f:
         all_links = [line.strip() for line in f if line.strip()]
 
-    # Filter out already tracked (downloaded) links
     tracked_links = load_tracked_links()
     links = [link for link in all_links if link not in tracked_links]
     
@@ -199,21 +259,22 @@ async def main():
             
             for _ in range(len(batch_links)):
                 context = await browser.new_context(
-                    user_agent=random.choice(USER_AGENTS), # 50+ Hardcoded List me se ek pick karega
+                    user_agent=random.choice(USER_AGENTS), 
                     viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)},
                     record_video_dir=record_dir
                 )
                 contexts.append(context)
 
             for index, link in enumerate(batch_links):
-                await human_delay(2.0, 5.0) 
+                # Action 20: Pre-tab delay
+                await human_delay() # Delay 20
                 await process_link(contexts[index], link, index)
             
             for context in contexts:
                 await context.close()
             
             print(f"Batch {i//batch_size + 1} Completed.")
-            await human_delay(10.0, 20.0)
+            await human_delay() # Batch completion delay
             
         await browser.close()
 
