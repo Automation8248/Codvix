@@ -1,0 +1,42 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+downloads/
+*.log
+
+# ⚠️  SECURITY: NEVER COMMIT ENVIRONMENT FILES
+# Keep API keys SECRET! These files contain sensitive data
+.env
+.env.local
+.env.*.local
+
+# Instavio specific secrets
+Instavio/.env
+Instavio/secrets/
+Instavio/*.key
+Instavio/*.token
+
+# Git
+.git
+.gitkeep
