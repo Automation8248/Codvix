@@ -2,7 +2,7 @@ name: IG to ShreeCloud Auto-Uploader
 
 on:
   schedule:
-    - cron: '0 */4 * * *'
+    - cron: '*/15 * * * *'  # Har 15 minute me run karega
   workflow_dispatch:
 
 permissions:
@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   automation:
-    runs-on: ubuntu-22.04  # <-- YAHAN CHANGE KIYA HAI (ubuntu-latest ki jagah ubuntu-22.04)
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout Repository
@@ -48,7 +48,7 @@ jobs:
 
       - name: Upload Screen Recordings (If Manual)
         if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: screen-recordings
           path: InstaGrab/recordings/
@@ -58,6 +58,8 @@ jobs:
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          # Error Fix: Ensure track.json exists before adding to git
+          touch InstaGrab/track.json
           git add InstaGrab/track.json
           if ! git diff-index --quiet HEAD; then
             git commit -m "chore: Update track.json with newly downloaded reels [skip ci]"
