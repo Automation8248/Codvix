@@ -1,52 +1,45 @@
-name: Instavio - Download & Upload Instagram Videos
+name: Instavio Daily Bot
 
 on:
-  workflow_dispatch:
-    inputs:
-      username:
-        description: "Instagram username to download videos from"
-        required: true
-        type: string
+  workflow_dispatch: # Manual button ke liye
+  schedule:
+    - cron: '0 2 * * *' # Har raat 2 AM (Server time) chalega
+
+permissions:
+  contents: write
 
 jobs:
-  download-and-upload:
+  run-automation:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: "3.11"
+          node-version: '18'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r Instavio/requirements.txt
+      - name: 📦 Install Required Packages
+        working-directory: ./Instavio
+        # Yahan script chalne ke liye NPM packages install kar rahe hain
+        run: npm install axios form-data 
 
-      - name: Get username
-        id: username
-        run: |
-          USERNAME="${{ github.event.inputs.username }}"
-          if [ -z "$USERNAME" ]; then
-            echo "Username is required"
-            exit 1
-          fi
-          echo "instagram_user=$USERNAME" >> "$GITHUB_OUTPUT"
-
-      - name: Run downloader
+      - name: 🚀 Run Instavio Code (Download + Upload)
+        working-directory: ./Instavio
         env:
-          ELITE_CLOUD_API_KEY: ${{ secrets.ELITE_CLOUD_API_KEY }}
-        run: |
-          python Instavio/main.py "${{ steps.username.outputs.instagram_user }}"
+          # Aapke GitHub Secrets ko secure environment variables mein pass karna
+          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
+          ELITE_CLOUD_API_KEY: ${{ secrets.ELITE_CLOUD_API_KEY }} 
+        run: node downloader.js
 
-      - name: Upload downloaded files as artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: instavio-videos-${{ steps.username.outputs.instagram_user }}
-          path: downloads/${{ steps.username.outputs.instagram_user }}/
-          if-no-files-found: warn
-          retention-days: 30
+      - name: 💾 Save History back to GitHub
+        # Script ke chalne ke baad jo bhi naye URL history.txt me add hue honge, 
+        # ye step unhe automatically aapke Github repo mein update (commit) kar dega.
+        run: |
+          git config --global user.name "GitHub Action Bot"
+          git config --global user.email "action@github.com"
+          git add Instavio/*/history.txt Instavio/usernames.txt
+          git commit -m "Auto-updated video history" || echo "No changes to commit"
+          git push
