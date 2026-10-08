@@ -1,10 +1,12 @@
 name: Instavio Anti-Detect Scraper
 
 on:
-  workflow_dispatch: # Manual button dabane par
+  workflow_dispatch:
   schedule:
-    - cron: '0 2 * * *' # Auto run (Har raat)
-
+    # 0 1 * * * matlab UTC time ke hisaab se raat ka 1:00 AM
+    # Jo ki India (IST) ke hisaab se exactly subah 6:30 AM hota hai.
+    - cron: '0 1 * * *'
+    
 permissions:
   contents: write
 
