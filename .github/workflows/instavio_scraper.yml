@@ -1,12 +1,11 @@
 name: Instavio Anti-Detect Scraper
 
 on:
-  workflow_dispatch:
+  workflow_dispatch: # Manual button dabane par (Screen Recording ON hogi)
   schedule:
-    # 0 1 * * * matlab UTC time ke hisaab se raat ka 1:00 AM
-    # Jo ki India (IST) ke hisaab se exactly subah 6:30 AM hota hai.
-    - cron: '0 1 * * *'
-    
+    # 0 1 * * * = UTC 1:00 AM (Yani India Time IST ke subah 6:30 AM) par auto-run
+    - cron: '0 1 * * *' 
+
 permissions:
   contents: write
 
@@ -22,7 +21,7 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20' # Latest LTS version
 
       - name: 📦 Install Playwright & Stealth Plugins
         working-directory: ./Instavio
@@ -34,23 +33,26 @@ jobs:
         working-directory: ./Instavio
         env:
           IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
-          # 👉 NAYA LOGIC: Agar manually run hua hai, toh RECORD_VIDEO ki value 'true' hogi, warna 'false'
+          # Yahan detect hoga ki button (workflow_dispatch) se run hua hai ya auto-timer se
           RECORD_VIDEO: ${{ github.event_name == 'workflow_dispatch' }}
         run: node scraper.js
 
       - name: 🎥 Upload Screen Recording (Artifact)
+        # 👉 Aapki demand ke anusaar @v4 use kiya gaya hai (Fastest artifact upload)
         uses: actions/upload-artifact@v4
-        # 👉 NAYA LOGIC: Yeh upload step SIRF tabhi chalega jab aapne manual run kiya hoga (workflow_dispatch)
+        # Yeh step tabhi chalega jab manual run hoga, warna memory aur time bachayega
         if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: instavio-screen-recordings
-          path: Instavio/**/*.webm
+          # Recordings folder se saari .webm files uthayega
+          path: Instavio/Recordings/**/*.webm
           retention-days: 5 
 
       - name: 💾 Save Track.json & Video links to GitHub
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          git add Instavio/*/video.txt Instavio/track.json
-          git commit -m "Auto-update tracked user data and video URLs" || echo "No new links to commit"
+          # Naye URLs aur track.json ko update karega
+          git add Instavio/*/video.txt Instavio/track.json || true
+          git commit -m "Auto-update tracked user data and video URLs" || echo "No new data to commit"
           git push
