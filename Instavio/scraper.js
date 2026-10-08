@@ -176,7 +176,7 @@ async function startScraping() {
                     await randomSleep(2000, 3500); // Scroll ke baad 2 se 3.5 sec wait
                     currentHeight = await page.evaluate(() => document.body.scrollHeight);
 
-                    const links = await page.\$\$eval('a', anchors => {
+                    const links = await page.$$eval('a', anchors => {
                         return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
                     });
 
