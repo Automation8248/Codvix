@@ -6,30 +6,35 @@ chromium.use(stealth);
 const fs = require('fs');
 const path = require('path');
 
-const SESSION_ID = process.env.IG_SESSION_ID || 'AAPKA_SESSION_ID_YAHAN_DALEIN';
+// Session ID ab optional ban gaya hai (Bina login bypass ke karan)
+const SESSION_ID = process.env.IG_SESSION_ID || '';
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const randomSleep = (min, max) => sleep(Math.floor(Math.random() * (max - min + 1) + min));
 
-// 👉 Advanced Pop-up Handler
-async function handlePopups(page) {
+// 👉 NAYA LOGIC: Login Wall / Pop-up Bypass (DOM Manipulation)
+async function bypassLoginWall(page) {
     try {
-        const popupSelectors = [
-            'button:has-text("Not Now")', 
-            'button:has-text("Not now")', 
-            'button:has-text("Cancel")',
-            'button:has-text("Dismiss")',
-            'button:has-text("Later")'
-        ].join(', ');
+        console.log("🛡️ Attempting to remove Login Wall / Pop-ups via DOM manipulation...");
+        await page.evaluate(() => {
+            // 1. 'rnep' aur Instagram ke login overlays ko dhoondh kar delete karna
+            const overlays = document.querySelectorAll('[class*="rnep"], [id*="rnep"], [role="presentation"], .x1qjc9v5.x9f619.x78zum5.xdt5ytf.x1iyjqo2.xl56j7k');
+            
+            overlays.forEach(overlay => {
+                // Check if it's likely a full-screen overlay block
+                if (overlay && window.getComputedStyle(overlay).position === 'fixed') {
+                    overlay.remove(); // Element delete kar diya
+                }
+            });
 
-        const popupBtn = page.locator(popupSelectors).first();
-        
-        await popupBtn.waitFor({ state: 'visible', timeout: 3000 });
-        console.log("🔔 Pop-up detected! Automatically clicking to dismiss...");
-        await popupBtn.click({ force: true });
+            // 2. Scrolling ko wapas On karna (Kyunki pop-up aane par IG scroll block kar deta hai)
+            document.body.style.overflow = 'auto';
+            document.body.style.position = 'static';
+        });
+        console.log("✅ Login Wall removed & scrolling enabled!");
         await randomSleep(1500, 2500); 
     } catch (error) {
-        // Koi popup nahi aaya to chup-chap aage badho
+        console.log("✅ No blocking wall found. Moving forward.");
     }
 }
 
@@ -44,27 +49,21 @@ async function startScraping() {
         return;
     }
 
+    let trackData = {};
     if (!fs.existsSync(trackFile)) {
         fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
+    } else {
+        try {
+            const rawData = fs.readFileSync(trackFile, 'utf-8');
+            if (rawData.trim() !== '') trackData = JSON.parse(rawData);
+        } catch (err) {
+            fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
+        }
     }
     
     if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir, { recursive: true });
 
     const usernames = fs.readFileSync(usernamesFile, 'utf-8').split('\n').map(u => u.trim()).filter(u => u);
-    
-    // 👉 FIX: JSON ko safe tareeqe se read karna
-    let trackData = {};
-    try {
-        const rawData = fs.readFileSync(trackFile, 'utf-8');
-        if (rawData.trim() !== '') {
-            trackData = JSON.parse(rawData);
-        }
-    } catch (err) {
-        console.log("⚠️ track.json file ka format galat tha ya corrupt thi. Isko auto-fix kar raha hoon...");
-        // Agar file corrupt hai, toh usko empty JSON se replace kar dega taaki code crash na ho
-        fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
-        trackData = {};
-    }
 
     if (usernames.length === 0) {
         console.log("ℹ️ usernames.txt khali hai.");
@@ -87,7 +86,7 @@ async function startScraping() {
     }
 
     if (eligibleUsers.length === 0) {
-        console.log("ℹ️ Aaj ke liye koi user bacha nahi hai. Sab cooldown me hain. Automation band ho raha hai.");
+        console.log("ℹ️ Aaj ke liye koi user bacha nahi hai. Sab cooldown me hain.");
         return;
     }
 
@@ -116,23 +115,21 @@ async function startScraping() {
 
     const context = await browser.newContext(contextOptions);
     
-    await context.addCookies([{
-        name: 'sessionid',
-        value: SESSION_ID,
-        domain: '.instagram.com',
-        path: '/',
-        secure: true,
-        httpOnly: true
-    }]);
+    // Agar Session ID hai toh inject karega, warna bina login bypass logic par depend karega
+    if (SESSION_ID) {
+        await context.addCookies([{
+            name: 'sessionid',
+            value: SESSION_ID,
+            domain: '.instagram.com',
+            path: '/',
+            secure: true,
+            httpOnly: true
+        }]);
+    }
 
     const page = await context.newPage();
 
     try {
-        console.log("🌐 Going to Instagram Home Page (Only Once)...");
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-        await randomSleep(3200, 5600); 
-        await handlePopups(page); 
-
         // Loop for all eligible users
         for (let i = 0; i < eligibleUsers.length; i++) {
             const selectedUsername = eligibleUsers[i];
@@ -147,29 +144,16 @@ async function startScraping() {
             if (!fs.existsSync(videoTxtPath)) fs.writeFileSync(videoTxtPath, '');
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
-            console.log("🔎 Clicking on Search...");
-            await page.locator('svg[aria-label="Search"]').last().click({ force: true });
-            await randomSleep(1800, 3100);
-
-            await handlePopups(page);
-
-            const searchInput = page.getByPlaceholder('Search');
-            // Clear previous search (if any)
-            await searchInput.fill(''); 
+            // 👉 NAYA LOGIC: DIRECT URL NAVIGATION
+            const profileUrl = `https://www.instagram.com/${selectedUsername}/`;
+            console.log(`🌐 Going directly to profile: ${profileUrl}`);
+            await page.goto(profileUrl, { waitUntil: 'domcontentloaded' });
             
-            console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
-            await searchInput.pressSequentially(selectedUsername, { 
-                delay: Math.floor(Math.random() * 150) + 150 
-            });
-            await randomSleep(3500, 5800);
+            console.log("⏳ Waiting for profile to load naturally...");
+            await randomSleep(4000, 6500); 
 
-            console.log("🖱️ Clicking on User Profile...");
-            const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).first();
-            await userProfileLink.click({ force: true });
-            await page.waitForLoadState('networkidle');
-            await randomSleep(3400, 5200);
-
-            await handlePopups(page); 
+            // 👉 NAYA LOGIC: Bypass Login Pop-ups / Intercepts via DOM removal
+            await bypassLoginWall(page);
 
             console.log("📜 Starting Live Fast Scrolling & Extraction...");
             let previousHeight = 0;
@@ -186,7 +170,7 @@ async function startScraping() {
                 await randomSleep(2800, 4800); 
                 currentHeight = await page.evaluate(() => document.body.scrollHeight);
 
-                const links = await page.$$eval('a', anchors => {
+                const links = await page.\$\$eval('a', anchors => {
                     return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
                 });
 
@@ -205,6 +189,9 @@ async function startScraping() {
                     }
                 }
                 console.log(`🔗 Scrolled... New added for ${selectedUsername} so far: ${newlyCopiedThisSession}`);
+                
+                // Har scroll ke baad bhi ek baar DOM bypass call kar lo (incase scrolling pe pop-up aaye)
+                await bypassLoginWall(page);
             }
             
             console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
@@ -223,7 +210,7 @@ async function startScraping() {
 
         console.log(`\n🏠 All target users processed. Going back to Home feed for final human activity...`);
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-        await handlePopups(page);
+        await bypassLoginWall(page);
 
         const homeScrollDuration = Math.floor(Math.random() * (45000 - 20000 + 1) + 20000); // 20000ms to 45000ms
         console.log(`💤 Spending ${(homeScrollDuration/1000).toFixed(1)} seconds randomly scrolling the home feed before closing...`);
@@ -248,6 +235,10 @@ async function startScraping() {
             console.log(`🎥 Complete Screen Recording saved in 'Recordings' folder.`);
         }
     }
+
+    const randomEndDelay = Math.floor(Math.random() * (210000 - 60000 + 1) + 60000); 
+    console.log(`\n💤 Applying final human random end delay of ${(randomEndDelay/1000/60).toFixed(2)} minutes...`);
+    await sleep(randomEndDelay);
 
     await browser.close();
     console.log(`\n🎉 Job Done! Automation Complete for today.`);
