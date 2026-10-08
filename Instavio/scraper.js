@@ -6,32 +6,51 @@ chromium.use(stealth);
 const fs = require('fs');
 const path = require('path');
 
-// 🔐 SESSION ID from GitHub Secrets
-const SESSION_ID = process.env.IG_SESSION_ID;
+const SESSION_ID = process.env.IG_SESSION_ID || 'AAPKA_SESSION_ID_YAHAN_DALEIN';
 
-if (!SESSION_ID) {
-    console.error("❌ ERROR: GitHub Secrets se IG_SESSION_ID nahi mila!");
-    process.exit(1);
-}
-
-// ⏳ True Random Delay Functions (Millisecond accuracy)
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const randomSleep = (min, max) => sleep(Math.floor(Math.random() * (max - min + 1) + min));
+
+// 👉 NAYA LOGIC: Advanced Pop-up Handler (Har tarah ke pop-up handle karega)
+async function handlePopups(page) {
+    try {
+        // Har possible dismiss button ka naam yahan add kar diya gaya hai
+        const popupSelectors = [
+            'button:has-text("Not Now")', 
+            'button:has-text("Not now")', 
+            'button:has-text("Cancel")',
+            'button:has-text("Dismiss")',
+            'button:has-text("Later")'
+        ].join(', ');
+
+        const popupBtn = page.locator(popupSelectors).first();
+        
+        // Sirf 3 second wait karega, agar koi pop-up hoga toh hata dega
+        await popupBtn.waitFor({ state: 'visible', timeout: 3000 });
+        console.log("🔔 Pop-up detected! Automatically clicking to dismiss...");
+        await popupBtn.click({ force: true });
+        await randomSleep(1500, 2500); // Click ke baad thoda time
+    } catch (error) {
+        // Koi popup nahi aaya to chup-chap aage badho bina kisi error ke
+    }
+}
 
 async function startScraping() {
     const instavioDir = __dirname;
     const usernamesFile = path.join(instavioDir, 'usernames.txt');
-    const trackFile = path.join(instavioDir, 'track.json'); 
+    const trackFile = path.join(instavioDir, 'track.json');
+    const recordingsDir = path.join(instavioDir, 'Recordings'); 
 
-    // Auto-create tracking file if missing
     if (!fs.existsSync(usernamesFile)) {
-        console.log("❌ usernames.txt nahi mili! File create karke username add karein.");
+        console.log("❌ usernames.txt nahi mili!");
         return;
     }
-    
+
     if (!fs.existsSync(trackFile)) {
         fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
     }
+    
+    if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir, { recursive: true });
 
     const usernames = fs.readFileSync(usernamesFile, 'utf-8').split('\n').map(u => u.trim()).filter(u => u);
     let trackData = JSON.parse(fs.readFileSync(trackFile, 'utf-8'));
@@ -41,73 +60,51 @@ async function startScraping() {
         return;
     }
 
-    let targetUsername = null;
+    let eligibleUsers = [];
     const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
     const now = Date.now();
 
-    // 🕒 1 Day = 1 Username Logic (30 Days Cooldown check)
     for (const username of usernames) {
         if (trackData[username] && trackData[username].last_processed) {
             const timePassed = now - new Date(trackData[username].last_processed).getTime();
             if (timePassed < THIRTY_DAYS_MS) {
-                continue; // 30 din nahi hue, skip and check next user
+                console.log(`⏭️ '${username}' abhi 30-day cooldown me hai. Skipping...`);
+                continue; 
             }
         }
-        // Eligible user mil gaya!
-        targetUsername = username;
-        break; 
+        eligibleUsers.push(username); 
     }
 
-    if (!targetUsername) {
-        console.log("ℹ️ Aaj ke liye koi eligible username nahi bacha hai. Sab cooling period me hain. Automation ruk gaya.");
+    if (eligibleUsers.length === 0) {
+        console.log("ℹ️ Aaj ke liye koi user bacha nahi hai. Sab cooldown me hain. Automation band ho raha hai.");
         return;
     }
 
     console.log(`\n======================================`);
-    console.log(`🎯 Aaj ka Target Selected: ${targetUsername} (Only 1 user for today)`);
-    console.log("🚀 Starting Stealth Browser Automation (Anti-Detect Mode)...");
+    console.log(`🎯 Total Targets Selected for Today: ${eligibleUsers.length}`);
+    console.log("🚀 Starting Stealth Browser Automation...");
 
-    // 📁 Auto-create User Folder & video.txt
-    const userFolder = path.join(instavioDir, targetUsername);
-    if (!fs.existsSync(userFolder)) fs.mkdirSync(userFolder, { recursive: true });
-
-    // Purani video.txt read karna taaki repeat match ho sake
-    const videoTxtPath = path.join(userFolder, 'video.txt');
-    let oldSavedLinks = new Set();
-    if (fs.existsSync(videoTxtPath)) {
-        const existing = fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l);
-        oldSavedLinks = new Set(existing);
-    } else {
-        fs.writeFileSync(videoTxtPath, ''); 
-    }
-
-    // 1. Asli Browser Launch Karna (Stealth applied)
     const browser = await chromium.launch({
-        headless: true,
-        args: ['--disable-blink-features=AutomationControlled'] 
+        headless: true, 
+        args: ['--disable-blink-features=AutomationControlled']
     });
 
-    // 🎥 2. Conditional Screen Recording Logic (Auto Run = Off, Manual Run = On)
-    const isManualRun = process.env.RECORD_VIDEO === 'true'; // YML file se value aayegi
-    
+    const isManualRun = process.env.RECORD_VIDEO === 'true'; 
+
     const contextOptions = {
         viewport: { width: 1280, height: 720 },
         userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     };
 
     if (isManualRun) {
-        console.log("🎥 Manual Run Detected: Screen Recording is ON.");
-        contextOptions.recordVideo = { 
-            dir: userFolder,
-            size: { width: 1280, height: 720 }
-        };
+        console.log("🎥 Manual Run Detected. Screen Recording ON.");
+        contextOptions.recordVideo = { dir: recordingsDir, size: { width: 1280, height: 720 } };
     } else {
-        console.log("⚡ Auto Run Detected: Screen Recording is OFF (Saving resources and space).");
+        console.log("⚡ Auto Run Detected. Screen Recording OFF.");
     }
 
     const context = await browser.newContext(contextOptions);
-
-    // 🍪 Session Cookie Inject Karna
+    
     await context.addCookies([{
         name: 'sessionid',
         value: SESSION_ID,
@@ -120,135 +117,131 @@ async function startScraping() {
     const page = await context.newPage();
 
     try {
-        // 3. Instagram Home Page par jana
-        console.log("🌐 Going to Instagram Home Page...");
+        console.log("🌐 Going to Instagram Home Page (Only Once)...");
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-        
-        // Random wait between 4s to 7s on home page
-        console.log("⏳ Home page loaded. Waiting like a human...");
-        await randomSleep(4123, 7234);
+        await randomSleep(3200, 5600); 
+        await handlePopups(page); 
 
-        // 👉 NAYA LOGIC: Handle "Turn on Notifications" or "Save Login Info" Pop-up
-        try {
-            console.log("🛡️ Checking for 'Not Now' pop-ups...");
-            // Instagram pop-ups par mostly 'Not Now' ya 'Not now' button hota hai
-            const notNowBtn = page.locator('button:has-text("Not Now"), button:has-text("Not now")').first();
+        // Loop for all eligible users
+        for (let i = 0; i < eligibleUsers.length; i++) {
+            const selectedUsername = eligibleUsers[i];
             
-            // 5 second tak wait karega ki kya pop-up aaya
-            await notNowBtn.waitFor({ state: 'visible', timeout: 5000 });
+            console.log(`\n======================================`);
+            console.log(`🔍 Processing User ${i + 1} of ${eligibleUsers.length}: [${selectedUsername}]`);
+
+            const userFolder = path.join(instavioDir, selectedUsername);
+            if (!fs.existsSync(userFolder)) fs.mkdirSync(userFolder, { recursive: true });
+
+            const videoTxtPath = path.join(userFolder, 'video.txt');
+            if (!fs.existsSync(videoTxtPath)) fs.writeFileSync(videoTxtPath, '');
+            const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
+
+            console.log("🔎 Clicking on Search...");
+            await page.locator('svg[aria-label="Search"]').last().click({ force: true });
+            await randomSleep(1800, 3100);
+
+            await handlePopups(page);
+
+            const searchInput = page.getByPlaceholder('Search');
+            // Clear previous search (if any)
+            await searchInput.fill(''); 
             
-            console.log("🔔 Pop-up detected! Clicking 'Not Now'...");
-            await notNowBtn.click({ force: true });
-            await randomSleep(2000, 3500); // Click karne ke baad slight wait
-        } catch (error) {
-            // Agar 5 second mein pop-up nahi aaya, to chup-chap aage badh jayega (Error throw nahi karega)
-            console.log("✅ No pop-up detected. Moving forward.");
-        }
-
-        console.log("📜 Randomly scrolling home feed...");
-        await page.evaluate(() => window.scrollBy({ top: Math.random() * 800 + 400, behavior: 'smooth' }));
-        await randomSleep(1890, 3120); 
-        await page.evaluate(() => window.scrollBy({ top: -(Math.random() * 500 + 200), behavior: 'smooth' }));
-        await randomSleep(2300, 4800); 
-
-        // 4. Search Bar par Click aur Type Karna
-        console.log("🔎 Clicking on Search...");
-        // 👉 ADDED { force: true } taaki intercept error na aaye
-        await page.locator('svg[aria-label="Search"]').last().click({ force: true });
-        await randomSleep(1650, 3420); 
-
-        console.log(`⌨️ Typing username: ${targetUsername}...`);
-        await page.getByPlaceholder('Search').pressSequentially(targetUsername, { 
-            delay: Math.floor(Math.random() * 200) + 120 // Har character pe random 120-320ms gap
-        });
-        
-        await randomSleep(2130, 4560);
-
-        // 5. User ki Profile par Click karna
-        console.log("🖱️ Clicking on User Profile...");
-        const userProfileLink = page.locator(`a[href="/${targetUsername}/"]`).first();
-        // 👉 ADDED { force: true } taaki intercept error na aaye
-        await userProfileLink.click({ force: true });
-        
-        console.log("⏳ Profile clicked. Waiting for page to load naturally...");
-        await randomSleep(4230, 6890); // 4 se almost 7 sec ka random wait
-
-        // 6. Scroll down and LIVE COPY Video URLs
-        console.log("📜 Starting live scrolling and extracting URLs...");
-        let previousHeight = 0;
-        let currentHeight = await page.evaluate(() => document.body.scrollHeight);
-        
-        const copiedLinks = new Set();
-        let totalCopied = 0;
-        let reachedOldVideo = false;
-        
-        while (previousHeight !== currentHeight) {
-            previousHeight = currentHeight;
-
-            // URL Extract
-            const linksOnPage = await page.$$eval('a', anchors => {
-                return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
+            // 👉 NAYA LOGIC: 100% Manual Typing Simulation (Bina copy-paste ke)
+            console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
+            await searchInput.pressSequentially(selectedUsername, { 
+                delay: Math.floor(Math.random() * 150) + 150 // Har character par 150ms-300ms ka keyboard type delay
             });
+            await randomSleep(3500, 5800);
 
-            let newlyAdded = 0;
-            for (const link of linksOnPage) {
-                // Check agar URL purane month wali history mein hai
-                if (oldSavedLinks.has(link)) {
-                    console.log(`🛑 Old video found! (${link}). Stoping scroll. 30 Days Limit Reached.`);
-                    reachedOldVideo = true;
-                    break;
+            console.log("🖱️ Clicking on User Profile...");
+            const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).first();
+            await userProfileLink.click({ force: true });
+            await page.waitForLoadState('networkidle');
+            await randomSleep(3400, 5200);
+
+            await handlePopups(page); 
+
+            console.log("📜 Starting Live Fast Scrolling & Extraction...");
+            let previousHeight = 0;
+            let currentHeight = await page.evaluate(() => document.body.scrollHeight);
+            
+            let reachedOldVideo = false;
+            let newlyCopiedThisSession = 0;
+            const tempCopied = new Set(); 
+
+            while (previousHeight !== currentHeight && !reachedOldVideo) {
+                previousHeight = currentHeight;
+                
+                await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
+                await randomSleep(2800, 4800); 
+                currentHeight = await page.evaluate(() => document.body.scrollHeight);
+
+                const links = await page.\$\$eval('a', anchors => {
+                    return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
+                });
+
+                for (const link of links) {
+                    if (oldSavedVideos.has(link)) {
+                        console.log(`🛑 MATCH FOUND! (${link}). Pehle se copy kiya hua hai. Stopping scroll.`);
+                        reachedOldVideo = true;
+                        break;
+                    }
+
+                    if (!tempCopied.has(link)) {
+                        tempCopied.add(link);
+                        fs.appendFileSync(videoTxtPath, `${link}\n`); // Live Save
+                        oldSavedVideos.add(link);
+                        newlyCopiedThisSession++;
+                    }
                 }
-
-                // Check agar naya URL iss session me abhi tak copy nahi hua hai
-                if (!copiedLinks.has(link)) {
-                    copiedLinks.add(link);
-                    fs.appendFileSync(videoTxtPath, `${link}\n`); // Live save to txt
-                    newlyAdded++;
-                    totalCopied++;
-                }
+                console.log(`🔗 Scrolled... New added for ${selectedUsername} so far: ${newlyCopiedThisSession}`);
             }
+            
+            console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
 
-            if (newlyAdded > 0) {
-                console.log(`🔗 Copied ${newlyAdded} new URLs. (Total saved: ${totalCopied})`);
+            trackData[selectedUsername] = {
+                last_processed: new Date().toISOString()
+            };
+            fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
+            
+            // 👉 NAYA LOGIC: User Change Delay (6 se 10 second random)
+            if (i < eligibleUsers.length - 1) {
+                const interUserDelay = Math.floor(Math.random() * (10000 - 6000 + 1) + 6000); // 6000ms to 10000ms
+                console.log(`\n⏳ Switching to next profile search in ${(interUserDelay/1000).toFixed(1)} seconds...`);
+                await sleep(interUserDelay);
             }
-
-            if (reachedOldVideo) break;
-
-            // Scroll with random distance and random sleep
-            await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
-            await randomSleep(3450, 6780); // 3.4s to 6.7s random wait per scroll
-            currentHeight = await page.evaluate(() => document.body.scrollHeight);
         }
-        
-        console.log(`✅ Process complete for this profile. Total NAYE Unique URLs saved: ${totalCopied}`);
 
-        // Track JSON update karna
-        trackData[targetUsername] = {
-            last_processed: new Date().toISOString(),
-            total_new_videos_added: totalCopied
-        };
-        fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
-        console.log(`📝 track.json updated. Next run for this user after 30 days.`);
+        // 👉 NAYA LOGIC: Jab sabhi user ka kaam khatam ho jaye, toh Home section par jao
+        console.log(`\n🏠 All target users processed. Going back to Home feed for final human activity...`);
+        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+        await handlePopups(page);
 
-        // 👉 NAYA LOGIC: Final Random Sleep Profile (1 to 3.2 Minutes) taaki Instagram AI pattern na pakad sake
-        const endDelayProfiles = [
-            62000, 75000, 88000, 94000, 105000, 112000, 126000, 133000, 142000, 151000,
-            159000, 168000, 175000, 182000, 191000, 192000, 83000, 119000, 137000, 148000
-        ]; // 20 different time delays
+        // 👉 NAYA LOGIC: Home section par 20 se 45 second random delay & scrolling
+        const homeScrollDuration = Math.floor(Math.random() * (45000 - 20000 + 1) + 20000); // 20000ms to 45000ms
+        console.log(`💤 Spending ${(homeScrollDuration/1000).toFixed(1)} seconds randomly scrolling the home feed before closing...`);
         
-        const finalRandomDelay = endDelayProfiles[Math.floor(Math.random() * endDelayProfiles.length)];
-        
-        console.log(`\n💤 Human Final Break: Bot will rest for ${(finalRandomDelay / 1000 / 60).toFixed(2)} minutes before closing completely.`);
-        await sleep(finalRandomDelay);
-
-        await context.close();
-        if (isManualRun) {
-            console.log(`🎥 Screen Recording saved in ${targetUsername} folder (as .webm file).`);
+        const startTime = Date.now();
+        while (Date.now() - startTime < homeScrollDuration) {
+            // Niche scroll karega
+            await page.evaluate(() => window.scrollBy({ top: Math.random() * 500 + 300, behavior: 'smooth' }));
+            await randomSleep(2000, 4000);
+            
+            // Asli insaan ki tarah kabhi kabhi thoda wapas upar bhi dekhega (30% chance)
+            if (Math.random() > 0.7) {
+                await page.evaluate(() => window.scrollBy({ top: -(Math.random() * 300 + 100), behavior: 'smooth' }));
+                await randomSleep(1500, 2500);
+            }
         }
+        console.log("✅ Final home feed scrolling complete.");
 
     } catch (error) {
-        console.error(`❌ Error during automation for ${targetUsername}:`, error.message);
+        console.error(`❌ Global Error during automation:`, error.message);
+    } finally {
         await context.close(); 
+        if (isManualRun) {
+            console.log(`🎥 Complete Screen Recording saved in 'Recordings' folder.`);
+        }
     }
 
     await browser.close();
