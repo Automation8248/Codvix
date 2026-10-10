@@ -68,13 +68,11 @@ jobs:
           python scraper.py
 
       - name: Upload Artifacts
-        # 👉 FIX 4: v4 ka use karein aur always() lagayein (taaki error aane par bhi screenshot upload ho)
         uses: actions/upload-artifact@v4
         if: always() 
         with:
           name: Web-Scrape-Results
-          # 👉 FIX 5: Space wale folder ke names me double quotes lagayein
           path: |
-            "Web Scrape/screenshot.png"
-            "Web Scrape/recording.mp4"
+            Web Scrape/screenshot.png
+            Web Scrape/recording.mp4
           if-no-files-found: ignore
