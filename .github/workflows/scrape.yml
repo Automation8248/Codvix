@@ -1,9 +1,9 @@
 name: Cloudflare Web Scraper
 
 on:
-  workflow_dispatch: # Manual trigger (Screen Recording ON)
+  workflow_dispatch: # Manual trigger (will record screen)
   schedule:
-    - cron: '0 6 * * *' # Automatic trigger (Screen Recording OFF)
+    - cron: '0 6 * * *' # Automatic trigger (runs daily at 6:00 AM UTC, no recording)
 
 jobs:
   scrape-job:
@@ -21,68 +21,46 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install seleniumbase pyperclip
+          pip install seleniumbase
           sudo apt-get update
-          # xclip is required for clipboard (copy icon) to work in headless Linux
-          sudo apt-get install -y xvfb fluxbox ffmpeg xclip
+          sudo apt-get install -y xvfb ffmpeg
 
       - name: Run Scraper WITH Screen Recording (Manual Run)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          # Create Recordings folder (Quotes added for safety)
-          mkdir -p "Web Scrape/Recordings"
-          
-          # Start Xvfb (Virtual Display) and Window Manager
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-          sleep 2
+          # Start Virtual Display (Xvfb) for headed browser execution
+          Xvfb :99 -screen 0 1920x1080x24 &
           export DISPLAY=:99
-          fluxbox > /dev/null 2>&1 &
-          sleep 1
           
-          echo "Manual trigger detected. Starting full-length screen recording (WEBM)..."
-          # FFmpeg script run hone se PEHLE start hota hai (Logs hide nahi kiye taaki error dikhe)
-          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libvpx-vp9 -crf 30 -b:v 0 -deadline realtime "Web Scrape/Recordings/recording.webm" &
+          echo "Manual trigger detected. Starting screen recording..."
+          # Start FFmpeg in the background
+          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p Web\ Scrape/recording.mp4 > /dev/null 2>&1 &
           FFMPEG_PID=$!
           
-          # Yahan actual Python script run hogi
+          # Run the Python script
           cd "Web Scrape"
+          python scraper.py
           
-          # 👉 FIX: Agar python script fail ho jaye, tab bhi aage badhe taaki video corrupt na ho
-          python scraper.py || echo "Python script failed or stopped, but saving video safely..."
-          
-          # Python script END hone ke BAAD recording gracefully stop hogi
+          # Stop FFmpeg gracefully to save the video file
           kill -INT $FFMPEG_PID
-          sleep 5
+          sleep 3
 
       - name: Run Scraper WITHOUT Screen Recording (Automatic Run)
         if: github.event_name != 'workflow_dispatch'
         run: |
-          # Start Virtual Display and Window Manager only
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-          sleep 2
+          # Start Virtual Display but do not start FFmpeg
+          Xvfb :99 -screen 0 1920x1080x24 &
           export DISPLAY=:99
-          fluxbox > /dev/null 2>&1 &
-          sleep 1
           
+          echo "Automatic trigger detected. Skipping screen recording..."
           cd "Web Scrape"
           python scraper.py
 
-      - name: 🎥 Upload Screen Recording (Artifact)
+      - name: Upload Artifacts (v4)
         uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'workflow_dispatch'
         with:
-          name: welib-screen-recordings
-          # 👉 FIX: Quotes lagaye gaye hain kyunki folder ke naam mein space hai
-          path: "Web Scrape/Recordings/**/*.webm"
-          retention-days: 5
-
-      - name: 📚 Upload Scraped Books & Data (Artifact)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: Downloaded-Books-Data
-          # 👉 FIX: Quotes lagaye gaye hain kyunki folder ke naam mein space hai
+          name: Scraping-Artifacts
           path: |
-            "Web Scrape/Books/"
-            "Web Scrape/Screenshots/"
-          retention-days: 5
+            Web Scrape/screenshot.png
+            Web Scrape/recording.mp4
+          if-no-files-found: ignore
