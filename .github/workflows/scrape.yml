@@ -39,16 +39,16 @@ jobs:
           fluxbox > /dev/null 2>&1 &
           sleep 1
           
-          echo "Manual trigger detected. Starting screen recording (WEBM)..."
-          # Record in .webm format using libvpx-vp9 for fast realtime encoding
+          echo "Manual trigger detected. Starting full-length screen recording (WEBM)..."
+          # FFmpeg script run hone se PEHLE start hota hai
           ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libvpx-vp9 -crf 30 -b:v 0 -deadline realtime "Web Scrape/Recordings/recording.webm" > /dev/null 2>&1 &
           FFMPEG_PID=$!
           
-          # Run the Python script
+          # Yahan actual Python script poori tarah run hogi
           cd "Web Scrape"
           python scraper.py
           
-          # Stop FFmpeg gracefully
+          # Python script END hone ke BAAD recording stop hogi
           kill -INT $FFMPEG_PID
           sleep 5
 
