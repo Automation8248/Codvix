@@ -3,77 +3,140 @@ import time
 import random
 import glob
 import shutil
+import pyperclip
 from seleniumbase import SB
 
-def scrape_welib():
-    # Folders create karna agar wo nahi hain
-    os.makedirs("Books", exist_ok=True)
-    os.makedirs("Screenshots", exist_ok=True)
+def smooth_scroll(sb, direction="down"):
+    """Bot-detection se bachne ke liye insaano jaisa dheere-dheere scroll karna."""
+    if direction == "down":
+        for i in range(1, 8):
+            sb.execute_script(f"window.scrollBy(0, {random.randint(150, 300)});")
+            time.sleep(random.uniform(0.2, 0.5))
+    else:
+        for i in range(1, 8):
+            sb.execute_script(f"window.scrollBy(0, {-random.randint(150, 300)});")
+            time.sleep(random.uniform(0.2, 0.5))
+    time.sleep(1)
 
-    # search.txt se topics read karna
+def scrape_welib():
+    # Saare zaroori folders create karna
+    os.makedirs("Books/Download Book", exist_ok=True)
+    os.makedirs("Screenshots", exist_ok=True)
+    os.makedirs("Recordings", exist_ok=True)
+
+    # search.txt se topic padhna
     try:
         with open("search.txt", "r", encoding="utf-8") as f:
             topics = [line.strip() for line in f if line.strip()]
-        search_query = random.choice(topics) if topics else "technology"
+        search_query = random.choice(topics) if topics else "The Bible"
     except FileNotFoundError:
-        print("search.txt nahi mila, default topic search kar rahe hain.")
-        search_query = "technology"
+        search_query = "The Bible"
 
-    print(f"Topic selected for search: {search_query}")
+    # File ka naam format karna (e.g., "The Bible" -> "the_bible")
+    formatted_topic = search_query.lower().replace(" ", "_")
+    print(f"Topic selected: {search_query} | File prefix: {formatted_topic}")
 
-    with SB(uc=True, test=True, headless=False) as sb:
+    with SB(uc=True, test=True, headless=False, locale_code="en") as sb:
         url = "https://welib.st"
         
-        print("1. Website open kar rahe hain...")
-        sb.activate_cdp_mode(url)
-        sb.sleep(3) # Wait 3 seconds
-        sb.save_screenshot("Screenshots/01_cloudflare_checking.png")
-        
-        print("2. Cloudflare bypass ke baad 5 second wait kar rahe hain...")
-        sb.sleep(5)
-        sb.save_screenshot("Screenshots/02_website_loaded.png")
-        
-        print("3. Upar-niche scroll kar rahe hain...")
-        sb.execute_script("window.scrollTo(0, 800);") # Niche scroll
-        sb.sleep(1)
-        sb.execute_script("window.scrollTo(0, 0);")   # Upar scroll
-        sb.sleep(2)
-        sb.save_screenshot("Screenshots/03_after_scroll.png")
-        
-        print("4. Search bar mein type kar rahe hain...")
-        # ⚠️ IMPORTANT: Niche diye gaye selector ('input[type="text"]') ko website ke actual search bar selector se replace karein
-        search_input_selector = "input[type='text']" 
-        sb.type(search_input_selector, search_query + "\n") # \n se Enter press hoga
-        sb.sleep(5)
-        sb.save_screenshot("Screenshots/04_search_results.png")
-        
-        print("5. Pehli book select kar rahe hain...")
-        # ⚠️ IMPORTANT: Is selector ko book ke actual link/title selector se replace karein
-        first_book_selector = "h3 a" 
-        sb.click(first_book_selector)
-        sb.sleep(5)
-        sb.save_screenshot("Screenshots/05_book_page.png")
-        
-        print("6. Book download kar rahe hain...")
-        # ⚠️ IMPORTANT: Download button ka actual selector yahan dalein
-        download_button_selector = "a.download-btn" 
-        sb.click(download_button_selector)
-        
-        # Download complete hone ka wait (adjust time as needed)
-        print("Downloading in progress... waiting 15 seconds")
-        sb.sleep(15)
-        sb.save_screenshot("Screenshots/06_after_download.png")
-        
-        # Downloaded file ko 'Books' folder mein move karna
-        # SeleniumBase default downloads ko 'downloaded_files' folder mein rakhta hai
-        download_dir = "downloaded_files"
-        if os.path.exists(download_dir):
-            files = glob.glob(f"{download_dir}/*")
-            for file in files:
-                shutil.move(file, os.path.join("Books", os.path.basename(file)))
-            print("Book successfully 'Books' folder mein save ho gayi.")
-        else:
-            print("Download folder nahi mila. Shayad download fail ho gaya ya alag location par save hua.")
+        try:
+            print("1. Website par ja rahe hain (Cloudflare Bypass)...")
+            sb.activate_cdp_mode(url)
+            sb.sleep(random.uniform(3.5, 4.5))
+            
+            print("2. Human-like Scroll: Upar se niche, fir wapas upar...")
+            smooth_scroll(sb, "down")
+            sb.sleep(random.uniform(1.0, 2.0))
+            smooth_scroll(sb, "up")
+            sb.execute_script("window.scrollTo(0, 0);") # Ensure top position
+            
+            print("3. Search box dhoondh rahe hain (Title, author, DOI, ISBN)...")
+            # CSS Selector jo placeholder me in words ko dhoondhega (Case-insensitive via xpath works best, but we use CSS here)
+            search_box_selector = "input[placeholder*='Title'], input[placeholder*='author'], input[placeholder*='DOI'], input[placeholder*='ISBN']"
+            
+            # Type as a human (delay between keystrokes)
+            sb.type(search_box_selector, search_query + "\n", timeout=10)
+            sb.sleep(random.uniform(4.0, 5.0))
+            sb.save_screenshot("Screenshots/01_after_search.png")
+            
+            print("4. Search results ke baad thoda niche scroll...")
+            sb.execute_script("window.scrollBy(0, 350);")
+            sb.sleep(2)
+            
+            print("5. Pehli book select kar rahe hain...")
+            # Results grid me pehli book ke link par click karna
+            sb.click("h3 a, .book-title a, article a", timeout=10) 
+            sb.sleep(random.uniform(3.0, 4.0))
+            
+            # Agar click hone ke baad naya tab open hua ho, toh usme switch karna
+            if len(sb.driver.window_handles) > 1:
+                sb.switch_to_window(1)
+            
+            print("6. Thoda niche scroll karke 'PDF:' ke aage wala Download button dhoondhna...")
+            sb.execute_script("window.scrollBy(0, 400);")
+            sb.sleep(2)
+            sb.save_screenshot("Screenshots/02_book_page.png")
+            
+            # XPath jo 'PDF:' text dhoondhta hai aur uske aas-paas ka button (a tag) nikalta hai
+            pdf_download_btn_xpath = "//*[contains(text(), 'PDF:')]/following-sibling::*//a | //*[contains(text(), 'PDF:')]/..//a[contains(@class, 'download') or contains(@href, 'download')]"
+            sb.click(pdf_download_btn_xpath, timeout=10)
+            
+            print("7. 40 second wait kar rahe hain (Anti-bot / File Prep)...")
+            sb.sleep(40)
+            
+            print("8. '(📚 Download Now)' button aur Copy icon par click karna...")
+            sb.save_screenshot("Screenshots/03_ready_to_download.png")
+            
+            # Download Now button click
+            download_now_xpath = "//*[contains(text(), 'Download Now') or contains(text(), '📚 Download Now')]"
+            sb.click(download_now_xpath, timeout=10)
+            
+            # 7 second total wait hai. 2 second baad copy icon click karenge.
+            sb.sleep(2)
+            print("   -> Copy icon par click kar rahe hain...")
+            # Copy icon usually Download Now ke theek baad/bagal me hota hai. 
+            copy_icon_xpath = f"{download_now_xpath}/following-sibling::*[1] | {download_now_xpath}/..//button[contains(@class, 'copy')]"
+            sb.click(copy_icon_xpath, timeout=5)
+            
+            # Bacha hua 5 second wait (total 7 seconds)
+            sb.sleep(5)
+            
+            # Clipboard se link nikal kar text file me save karna
+            copied_link = pyperclip.paste()
+            txt_file_path = f"Books/Download Book/{formatted_topic}.txt"
+            with open(txt_file_path, "w", encoding="utf-8") as f:
+                f.write(copied_link if copied_link else "Link copy nahi ho paya.")
+            print(f"Copied link saved to: {txt_file_path}")
+            
+            # Downloaded file ko rename karke Books folder me daalna
+            download_dir = "downloaded_files"
+            if os.path.exists(download_dir):
+                files = glob.glob(f"{download_dir}/*")
+                # Wait slightly if file is still downloading (.crdownload extension)
+                time_waited = 0
+                while any(f.endswith('.crdownload') for f in files) and time_waited < 30:
+                    time.sleep(2)
+                    time_waited += 2
+                    files = glob.glob(f"{download_dir}/*")
+                
+                # Actual downloaded file uthana (jo sabse nayi ho)
+                valid_files = [f for f in files if not f.endswith('.crdownload')]
+                if valid_files:
+                    latest_file = max(valid_files, key=os.path.getctime)
+                    new_pdf_path = os.path.join("Books", f"{formatted_topic}.pdf")
+                    shutil.move(latest_file, new_pdf_path)
+                    print(f"Book successfully renamed and saved to: {new_pdf_path}")
+                else:
+                    print("Download complete nahi hua.")
+            else:
+                print("Download folder nahi bana. Shayad file download nahi hui.")
+
+            print("Scraping and downloading successfully completed!")
+
+        except Exception as e:
+            print(f"Error aaya: {e}")
+            sb.save_screenshot("Screenshots/ERROR_SCREEN.png")
+            print("Error ka screenshot le liya gaya hai.")
 
 if __name__ == "__main__":
     scrape_welib()
