@@ -21,35 +21,36 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install seleniumbase
+          pip install seleniumbase pyperclip
           sudo apt-get update
-          # fluxbox added here to fix the black screen issue
-          sudo apt-get install -y xvfb fluxbox ffmpeg
+          # xclip is required for clipboard (copy icon) to work in headless Linux
+          sudo apt-get install -y xvfb fluxbox ffmpeg xclip
 
       - name: Run Scraper WITH Screen Recording (Manual Run)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          # Start Xvfb (Virtual Display)
+          # Create Recordings folder
+          mkdir -p "Web Scrape/Recordings"
+          
+          # Start Xvfb (Virtual Display) and Window Manager
           Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
           sleep 2
           export DISPLAY=:99
-          
-          # Start Fluxbox Window Manager (FIX FOR BLACK SCREEN)
           fluxbox > /dev/null 2>&1 &
           sleep 1
           
-          echo "Manual trigger detected. Starting screen recording..."
-          # Start FFmpeg in the background
-          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p Web\ Scrape/recording.mp4 > /dev/null 2>&1 &
+          echo "Manual trigger detected. Starting screen recording (WEBM)..."
+          # Record in .webm format using libvpx-vp9 for fast realtime encoding
+          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libvpx-vp9 -crf 30 -b:v 0 -deadline realtime "Web Scrape/Recordings/recording.webm" > /dev/null 2>&1 &
           FFMPEG_PID=$!
           
           # Run the Python script
           cd "Web Scrape"
           python scraper.py
           
-          # Stop FFmpeg gracefully to save the video file
+          # Stop FFmpeg gracefully
           kill -INT $FFMPEG_PID
-          sleep 3
+          sleep 5
 
       - name: Run Scraper WITHOUT Screen Recording (Automatic Run)
         if: github.event_name != 'workflow_dispatch'
@@ -61,16 +62,26 @@ jobs:
           fluxbox > /dev/null 2>&1 &
           sleep 1
           
-          echo "Automatic trigger detected. Skipping screen recording..."
           cd "Web Scrape"
           python scraper.py
 
-      - name: Upload Artifacts (v4)
+      - name: 🎥 Upload Screen Recording (Artifact)
+        # 👉 Aapki demand ke anusaar @v4 use kiya gaya hai (Fastest artifact upload)
         uses: actions/upload-artifact@v4
+        # Yeh step tabhi chalega jab manual run hoga, warna memory aur time bachayega
+        if: always() && github.event_name == 'workflow_dispatch'
         with:
-          name: Scraping-Artifacts
+          name: welib-screen-recordings
+          # Recordings folder se saari .webm files uthayega
+          path: Web Scrape/Recordings/**/*.webm
+          retention-days: 5
+
+      - name: 📚 Upload Scraped Books & Data (Artifact)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: Downloaded-Books-Data
           path: |
-            Web Scrape/recording.mp4
-            Web Scrape/Screenshots/
             Web Scrape/Books/
-          if-no-files-found: ignore
+            Web Scrape/Screenshots/
+          retention-days: 5
