@@ -46,7 +46,8 @@ jobs:
         if: always() 
         with:
           name: Web-Scrape-Results
+          # 👉 YAHAN SE QUOTES HATA DIYE GAYE HAIN
           path: |
-            "Web Scrape/screenshot.png"
-            "Web Scrape/recording.webm"
+            Web Scrape/screenshot.png
+            Web Scrape/recording.webm
           if-no-files-found: ignore
