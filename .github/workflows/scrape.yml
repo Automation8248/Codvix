@@ -1,0 +1,66 @@
+name: Cloudflare Web Scraper
+
+on:
+  workflow_dispatch: # Manual trigger (will record screen)
+  schedule:
+    - cron: '0 6 * * *' # Automatic trigger (runs daily at 6:00 AM UTC, no recording)
+
+jobs:
+  scrape-job:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install seleniumbase
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg
+
+      - name: Run Scraper WITH Screen Recording (Manual Run)
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          # Start Virtual Display (Xvfb) for headed browser execution
+          Xvfb :99 -screen 0 1920x1080x24 &
+          export DISPLAY=:99
+          
+          echo "Manual trigger detected. Starting screen recording..."
+          # Start FFmpeg in the background
+          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p Web\ Scrape/recording.mp4 > /dev/null 2>&1 &
+          FFMPEG_PID=$!
+          
+          # Run the Python script
+          cd "Web Scrape"
+          python scraper.py
+          
+          # Stop FFmpeg gracefully to save the video file
+          kill -INT $FFMPEG_PID
+          sleep 3
+
+      - name: Run Scraper WITHOUT Screen Recording (Automatic Run)
+        if: github.event_name != 'workflow_dispatch'
+        run: |
+          # Start Virtual Display but do not start FFmpeg
+          Xvfb :99 -screen 0 1920x1080x24 &
+          export DISPLAY=:99
+          
+          echo "Automatic trigger detected. Skipping screen recording..."
+          cd "Web Scrape"
+          python scraper.py
+
+      - name: Upload Artifacts (v4)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Scraping-Artifacts
+          path: |
+            Web Scrape/screenshot.png
+            Web Scrape/recording.mp4
+          if-no-files-found: ignore
