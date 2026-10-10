@@ -1,9 +1,9 @@
 name: Cloudflare Web Scraper
 
 on:
-  workflow_dispatch: # Manual trigger (Screen recording hogi)
+  workflow_dispatch: # Manual trigger
   schedule:
-    - cron: '0 6 * * *' # Automatic trigger (Daily 6 AM UTC par chalega, recording nahi hogi)
+    - cron: '0 6 * * *' # Automatic trigger
 
 jobs:
   scrape-job:
@@ -23,49 +23,23 @@ jobs:
           python -m pip install --upgrade pip
           pip install seleniumbase
           sudo apt-get update
-          # Xvfb (Virtual display) aur FFmpeg (Recording) install kar rahe hain
-          sudo apt-get install -y xvfb ffmpeg
+          sudo apt-get install -y xvfb fluxbox ffmpeg
 
-      - name: Run Scraper WITH Screen Recording (Manual Run)
-        if: github.event_name == 'workflow_dispatch'
+      - name: Run Scraper
+        # Manual ya Auto, ab script dono run same tarike se karegi
         run: |
-          # Virtual Display start karega aur warnings ko hide kar dega
+          # 1. Virtual Display aur Window Manager start
           Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
           export DISPLAY=:99
-          
-          # 👉 FIX 1: Xvfb ko initialize hone ke liye 2 seconds dena zaroori hai
           sleep 2
           
-          echo "Manual trigger detected. Starting screen recording..."
+          fluxbox > /dev/null 2>&1 &
+          sleep 1
           
-          # 👉 FIX 2: Pehle folder ke andar jao taaki sab file ek hi jagah bane
           cd "Web Scrape"
           
-          # FFmpeg se recording start
-          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p recording.mp4 > /dev/null 2>&1 &
-          FFMPEG_PID=$!
-          
-          # Python script run karna
-          # 👉 FIX 3: Agar python script fail ho, tab bhi video smoothly save ho
-          python scraper.py || echo "Python script stopped or failed, but saving video safely..."
-          
-          # Recording stop karna aur file save karna
-          kill -INT $FFMPEG_PID
-          sleep 3
-
-      - name: Run Scraper WITHOUT Screen Recording (Automatic Run)
-        if: github.event_name != 'workflow_dispatch'
-        run: |
-          # Sirf Virtual Display start karega, recording nahi
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-          export DISPLAY=:99
-          
-          # 👉 Yahan bhi sleep 2 add karna zaroori hai
-          sleep 2
-          
-          echo "Automatic trigger detected. Skipping screen recording..."
-          cd "Web Scrape"
-          python scraper.py
+          # 2. Python run karo (Ye khud hi recording start aur stop kar lega manual hone par)
+          python scraper.py || echo "Script encountered an error."
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
@@ -73,6 +47,6 @@ jobs:
         with:
           name: Web-Scrape-Results
           path: |
-            Web Scrape/screenshot.png
-            Web Scrape/recording.mp4
+            "Web Scrape/screenshot.png"
+            "Web Scrape/recording.webm"
           if-no-files-found: ignore
