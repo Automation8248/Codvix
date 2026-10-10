@@ -1,9 +1,9 @@
 name: Cloudflare Web Scraper
 
 on:
-  workflow_dispatch: # Manual trigger (Screen Recording ON)
+  workflow_dispatch: # Manual trigger (will record screen)
   schedule:
-    - cron: '0 6 * * *' # Automatic trigger (Screen Recording OFF)
+    - cron: '0 6 * * *' # Automatic trigger (runs daily at 6:00 AM UTC, no recording)
 
 jobs:
   scrape-job:
@@ -21,67 +21,54 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install seleniumbase pyperclip
+          pip install seleniumbase
           sudo apt-get update
-          # xclip is required for clipboard (copy icon) to work in headless Linux
-          sudo apt-get install -y xvfb fluxbox ffmpeg xclip
+          sudo apt-get install -y xvfb ffmpeg
 
       - name: Run Scraper WITH Screen Recording (Manual Run)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          # Create Recordings folder
-          mkdir -p "Web Scrape/Recordings"
-          
-          # Start Xvfb (Virtual Display) and Window Manager
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-          sleep 2
+          # 1. Start Virtual Display (Xvfb)
+          Xvfb :99 -screen 0 1920x1080x24 &
           export DISPLAY=:99
-          fluxbox > /dev/null 2>&1 &
-          sleep 1
           
-          echo "Manual trigger detected. Starting full-length screen recording (WEBM)..."
-          # FFmpeg script run hone se PEHLE start hota hai
-          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libvpx-vp9 -crf 30 -b:v 0 -deadline realtime "Web Scrape/Recordings/recording.webm" > /dev/null 2>&1 &
+          # 2. Xvfb ko load hone ka time dein varna FFmpeg crash ho jayega
+          sleep 2 
+          
+          echo "Manual trigger detected. Starting screen recording..."
+          
+          # 3. Directory ke andar jaakar FFmpeg start karein taaki path issue na aaye
+          cd "Web Scrape"
+          
+          # FFmpeg output logs chalu rakhe hain (> /dev/null hataya)
+          ffmpeg -video_size 1920x1080 -framerate 30 -f x11grab -i :99.0 -c:v libx264 -preset ultrafast -pix_fmt yuv420p recording.mp4 &
           FFMPEG_PID=$!
           
-          # Yahan actual Python script poori tarah run hogi
-          cd "Web Scrape"
-          python scraper.py
+          # 4. Python script run karein
+          python scraper.py || echo "Python script failed, but saving video..."
           
-          # Python script END hone ke BAAD recording stop hogi
+          # 5. Stop FFmpeg gracefully to save the video file (mp4 container pack hone ke liye zaroori)
           kill -INT $FFMPEG_PID
-          sleep 5
+          sleep 3
 
       - name: Run Scraper WITHOUT Screen Recording (Automatic Run)
         if: github.event_name != 'workflow_dispatch'
         run: |
-          # Start Virtual Display and Window Manager only
-          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
-          sleep 2
+          Xvfb :99 -screen 0 1920x1080x24 &
           export DISPLAY=:99
-          fluxbox > /dev/null 2>&1 &
-          sleep 1
+          sleep 2
           
+          echo "Automatic trigger detected. Skipping screen recording..."
           cd "Web Scrape"
           python scraper.py
 
-      - name: 🎥 Upload Screen Recording (Artifact)
-        # 👉 Aapki demand ke anusaar @v4 use kiya gaya hai (Fastest artifact upload)
+      - name: Upload Artifacts (v4)
+        # always() lagana zaroori hai taaki script fail hone par bhi recording upload ho
+        if: always() 
         uses: actions/upload-artifact@v4
-        # Yeh step tabhi chalega jab manual run hoga, warna memory aur time bachayega
-        if: always() && github.event_name == 'workflow_dispatch'
         with:
-          name: welib-screen-recordings
-          # Recordings folder se saari .webm files uthayega
-          path: Web Scrape/Recordings/**/*.webm
-          retention-days: 5
-
-      - name: 📚 Upload Scraped Books & Data (Artifact)
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: Downloaded-Books-Data
+          name: Scraping-Artifacts
           path: |
-            Web Scrape/Books/
-            Web Scrape/Screenshots/
-          retention-days: 5
+            Web Scrape/screenshot.png
+            Web Scrape/recording.mp4
+          if-no-files-found: ignore
