@@ -1,9 +1,9 @@
 name: Cloudflare Web Scraper
 
 on:
-  workflow_dispatch: # Manual trigger (will record screen)
+  workflow_dispatch: # Manual trigger (Screen Recording ON)
   schedule:
-    - cron: '0 6 * * *' # Automatic trigger (runs daily at 6:00 AM UTC, no recording)
+    - cron: '0 6 * * *' # Automatic trigger (Screen Recording OFF)
 
 jobs:
   scrape-job:
@@ -23,14 +23,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install seleniumbase
           sudo apt-get update
-          sudo apt-get install -y xvfb ffmpeg
+          # fluxbox added here to fix the black screen issue
+          sudo apt-get install -y xvfb fluxbox ffmpeg
 
       - name: Run Scraper WITH Screen Recording (Manual Run)
         if: github.event_name == 'workflow_dispatch'
         run: |
-          # Start Virtual Display (Xvfb) for headed browser execution
-          Xvfb :99 -screen 0 1920x1080x24 &
+          # Start Xvfb (Virtual Display)
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          sleep 2
           export DISPLAY=:99
+          
+          # Start Fluxbox Window Manager (FIX FOR BLACK SCREEN)
+          fluxbox > /dev/null 2>&1 &
+          sleep 1
           
           echo "Manual trigger detected. Starting screen recording..."
           # Start FFmpeg in the background
@@ -48,9 +54,12 @@ jobs:
       - name: Run Scraper WITHOUT Screen Recording (Automatic Run)
         if: github.event_name != 'workflow_dispatch'
         run: |
-          # Start Virtual Display but do not start FFmpeg
-          Xvfb :99 -screen 0 1920x1080x24 &
+          # Start Virtual Display and Window Manager only
+          Xvfb :99 -screen 0 1920x1080x24 > /dev/null 2>&1 &
+          sleep 2
           export DISPLAY=:99
+          fluxbox > /dev/null 2>&1 &
+          sleep 1
           
           echo "Automatic trigger detected. Skipping screen recording..."
           cd "Web Scrape"
@@ -61,6 +70,7 @@ jobs:
         with:
           name: Scraping-Artifacts
           path: |
-            Web Scrape/screenshot.png
             Web Scrape/recording.mp4
+            Web Scrape/Screenshots/
+            Web Scrape/Books/
           if-no-files-found: ignore
