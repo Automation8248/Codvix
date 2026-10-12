@@ -3,7 +3,6 @@ import json
 import random
 import time
 import requests
-import concurrent.futures
 from github import Github
 
 # Configurations
@@ -19,10 +18,16 @@ USER_AGENTS = [
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
+    "Mozilla/5.0 (iPad; CPU OS 17_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/120.0.6099.101 Mobile/15E148 Safari/604.1",
     "Mozilla/5.0 (Android 14; Mobile; rv:120.0) Gecko/120.0 Firefox/120.0",
     "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Mobile/15E148 Safari/604.1",
     "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:109.0) Gecko/20100101 Firefox/119.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:109.0) Gecko/20100101 Firefox/118.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 OPR/102.0.0.0",
     "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 ]
 
@@ -31,7 +36,6 @@ def load_tracking():
         with open(TRACK_FILE, "r", encoding="utf-8") as file:
             try:
                 data = json.load(file)
-                # Purana list format ho toh naye dict format me badlo
                 if isinstance(data, list):
                     return {"completed_folders": data, "folder_progress": {}}
                 return data
@@ -89,7 +93,8 @@ def fetch_links_for_topic(topic):
     
     api_url = f"https://shreevibesbackend-production.up.railway.app/api/v1/search?q={topic}&count=100"
     try:
-        response = requests.get(api_url, headers=headers, timeout=30)
+        # Timeout ko 30 se badhakar 60 kar diya gaya hai
+        response = requests.get(api_url, headers=headers, timeout=60)
         if response.status_code == 200:
             data = response.json()
             for item in data.get("results", []):
@@ -102,7 +107,6 @@ def fetch_links_for_topic(topic):
     except Exception as e:
         print(f"⚠️ Error in fetching '{topic}': {e}")
         
-    time.sleep(random.uniform(1.0, 3.0)) 
     return extracted_links
 
 def main():
@@ -123,7 +127,6 @@ def main():
         print("Sabhi folders aur unke topics process ho chuke hain!")
         return
 
-    # Check agar koi folder pehle se in progress hai
     in_progress = [f for f in uncompleted_folders if f in tracking.get("folder_progress", {})]
     
     if in_progress:
@@ -145,7 +148,6 @@ def main():
         print(f"{search_file_path} khali hai.")
         return
 
-    # Nikaalna ki kaun se topics ho gaye hain
     processed_topics = tracking["folder_progress"].get(selected_folder, [])
     unprocessed_topics = [t for t in all_topics if t not in processed_topics]
 
@@ -155,27 +157,28 @@ def main():
         save_tracking(tracking)
         return
 
-    # Sirf 10 Topics select karna
     topics_to_process = unprocessed_topics[:10]
     print(f"🚀 Is run me {len(topics_to_process)} topics process kiye jayenge (Bache hue: {len(unprocessed_topics) - len(topics_to_process)}).")
 
     all_collected_links = set()
     
-    with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
-        futures = {executor.submit(fetch_links_for_topic, topic): topic for topic in topics_to_process}
-        for future in concurrent.futures.as_completed(futures):
-            topic_links = future.result()
-            if topic_links:
-                all_collected_links.update(topic_links)
+    # Ab ek-ek karke (sequentially) search chalega 6 second delay ke sath
+    for idx, topic in enumerate(topics_to_process, 1):
+        topic_links = fetch_links_for_topic(topic)
+        if topic_links:
+            all_collected_links.update(topic_links)
+            
+        # Agar ye aakhri topic nahi hai toh agli request se pehle exactly 6 second wait karein
+        if idx < len(topics_to_process):
+            print("⏳ Agle topic ke liye 6 second ka wait kar rahe hain taaki server crash na ho...")
+            time.sleep(6)
 
     if all_collected_links:
         success = save_to_github(selected_folder, list(all_collected_links))
         if success:
-            # Track.json update karna
             processed_topics.extend(topics_to_process)
             tracking["folder_progress"][selected_folder] = processed_topics
             
-            # Agar sabhi topics ho gaye toh folder completed mark karo
             if len(processed_topics) >= len(all_topics):
                 tracking["completed_folders"].append(selected_folder)
                 print(f"🎯 Folder '{selected_folder}' ke 100% topics pure ho gaye!")
