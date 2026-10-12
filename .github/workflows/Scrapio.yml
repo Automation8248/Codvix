@@ -2,7 +2,8 @@ name: Scrapio Automation
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    # 24 ghante me 4 baar run hoga (Har 6 ghante me ek baar)
+    - cron: '0 */6 * * *'
   workflow_dispatch: 
 
 jobs:
@@ -34,11 +35,10 @@ jobs:
         run: |
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          # Condition check karegi ki track.json bani hai ya nahi
           if [ -f "PicSync/track.json" ]; then
             git add PicSync/track.json
-            git diff --quiet && git diff --staged --quiet || git commit -m "chore: Update track.json with new processed folder via Scrapio"
+            git diff --quiet && git diff --staged --quiet || git commit -m "chore: Update track.json with batch progress via Scrapio"
             git push
           else
-            echo "track.json nahi mili, isliye commit skip kar rahe hain."
+            echo "track.json me koi change nahi hua ya file nahi bani, commit skip kiya."
           fi
