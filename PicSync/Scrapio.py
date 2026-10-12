@@ -10,7 +10,8 @@ GITHUB_TOKEN = os.getenv("GH_TOKEN")
 TARGET_REPO = "Automation8248/Codvix"
 BASE_TARGET_PATH = "Pixhub/Social post"
 
-MAIN_FOLDER = "Topic"
+# Yahan par path update kiya gaya hai
+MAIN_FOLDER = "PicSync/Topic" 
 TRACK_FILE = "PicSync/track.json"
 
 def load_tracked_folders():
@@ -53,7 +54,6 @@ def save_to_github(folder_name, new_links):
     print(f"Checking existing links at {file_path}...")
     existing_links, file_sha = get_existing_links_from_github(repo, file_path)
     
-    # Duplicates remove karna
     existing_set = set(existing_links)
     unique_new_links = [link for link in new_links if link not in existing_set]
     
@@ -83,9 +83,8 @@ def main():
         print("Error: GH_TOKEN set nahi hai.")
         return
 
-    # Yahan naya Check add kiya gaya hai
     if not os.path.exists(MAIN_FOLDER):
-        print(f"Error: '{MAIN_FOLDER}' folder nahi mila. Kripya check karein ki GitHub par 'Topic' folder push ho gaya hai ya nahi.")
+        print(f"Error: '{MAIN_FOLDER}' folder nahi mila. Kripya check karein ki GitHub par folder push ho gaya hai ya nahi.")
         return
 
     tracked_folders = load_tracked_folders()
