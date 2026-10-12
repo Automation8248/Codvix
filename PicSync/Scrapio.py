@@ -83,6 +83,11 @@ def main():
         print("Error: GH_TOKEN set nahi hai.")
         return
 
+    # Yahan naya Check add kiya gaya hai
+    if not os.path.exists(MAIN_FOLDER):
+        print(f"Error: '{MAIN_FOLDER}' folder nahi mila. Kripya check karein ki GitHub par 'Topic' folder push ho gaya hai ya nahi.")
+        return
+
     tracked_folders = load_tracked_folders()
     
     selected_folder = get_random_untracked_folder(MAIN_FOLDER, tracked_folders)
@@ -102,7 +107,7 @@ def main():
         topics = [line.strip() for line in file if line.strip()]
         
     if not topics:
-        print("search.txt khali hai.")
+        print(f"{search_file_path} khali hai.")
         return
 
     all_collected_links = set() 
