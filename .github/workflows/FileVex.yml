@@ -1,0 +1,33 @@
+name: FileVex Automation
+
+on:
+  workflow_dispatch:  # GitHub tab se manually Run karne ke liye
+  # schedule:
+  #   - cron: '0 0 * * *'  # Agar daily run karna ho toh is line se '#' hata dein
+
+jobs:
+  download-and-save:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Requirements
+        run: |
+          pip install requests
+
+      - name: Run FileVex Downloader
+        run: python FileVex/downloader.py
+
+      - name: Upload Downloaded File
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileVex-Downloads
+          path: downloads/  
+          retention-days: 5
