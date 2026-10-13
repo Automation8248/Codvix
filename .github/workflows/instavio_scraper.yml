@@ -3,8 +3,8 @@ name: Instavio Anti-Detect Scraper
 on:
   workflow_dispatch: # Manual button dabane par (Screen Recording ON hogi)
   schedule:
-    # 0 1 * * * = UTC 1:00 AM (Yani India Time IST ke subah 6:30 AM) par auto-run
-    - cron: '0 1 * * *' 
+    # 0 1 1 * * = Har mahine ki 1 tareekh ko UTC 1:00 AM (Yani India Time IST ke subah 6:30 AM) par chalega
+    - cron: '0 1 1 * *' 
 
 permissions:
   contents: write
@@ -12,7 +12,7 @@ permissions:
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
-    timeout-minutes: 60 
+    timeout-minutes: 90 # Thoda time badha diya hai taaki Reels dekhne aur multiple accounts me error na aaye
 
     steps:
       - name: 📥 Checkout Repository
@@ -21,7 +21,7 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # Latest LTS version
+          node-version: '20'
 
       - name: 📦 Install Playwright & Stealth Plugins
         working-directory: ./Instavio
@@ -29,30 +29,44 @@ jobs:
           npm install playwright playwright-extra puppeteer-extra-plugin-stealth
           npx playwright install --with-deps chromium
 
-      - name: 🚀 Run Stealth Scraper
+      - name: 🚀 Run Multi-Account Stealth Scraper
         working-directory: ./Instavio
         env:
-          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
-          # Yahan detect hoga ki button (workflow_dispatch) se run hua hai ya auto-timer se
+          # Screen recording manual run pe trigger hogi
           RECORD_VIDEO: ${{ github.event_name == 'workflow_dispatch' }}
+          
+          # Minimum 4 Accounts setup (GitHub Secrets se fetch honge)
+          IG_USER_1: ${{ secrets.IG_USER_1 }}
+          IG_PASS_1: ${{ secrets.IG_PASS_1 }}
+          
+          IG_USER_2: ${{ secrets.IG_USER_2 }}
+          IG_PASS_2: ${{ secrets.IG_PASS_2 }}
+          
+          IG_USER_3: ${{ secrets.IG_USER_3 }}
+          IG_PASS_3: ${{ secrets.IG_PASS_3 }}
+          
+          IG_USER_4: ${{ secrets.IG_USER_4 }}
+          IG_PASS_4: ${{ secrets.IG_PASS_4 }}
+
         run: node scraper.js
 
       - name: 🎥 Upload Screen Recording (Artifact)
-        # 👉 Aapki demand ke anusaar @v4 use kiya gaya hai (Fastest artifact upload)
         uses: actions/upload-artifact@v4
-        # Yeh step tabhi chalega jab manual run hoga, warna memory aur time bachayega
         if: always() && github.event_name == 'workflow_dispatch'
         with:
           name: instavio-screen-recordings
-          # Recordings folder se saari .webm files uthayega
           path: Instavio/Recordings/**/*.webm
           retention-days: 5 
 
-      - name: 💾 Save Track.json & Video links to GitHub
+      - name: 💾 Save Track data & Video links to GitHub
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          # Naye URLs aur track.json ko update karega
-          git add Instavio/*/video.txt Instavio/track.json || true
-          git commit -m "Auto-update tracked user data and video URLs" || echo "No new data to commit"
+          # Naye URLs, user memory aur account rotation memory ko update karega
+          git add Instavio/*/video.txt Instavio/track.json Instavio/account_track.json || true
+          git commit -m "Auto-update tracked users, account rotation, and video URLs" || echo "No new data to commit"
+          
+          # 👉 ERROR FIX: Push karne se pehle GitHub se latest changes merge karega
+          git pull --rebase origin main
+          
           git push
