@@ -2,9 +2,9 @@ name: Scrapio Automation
 
 on:
   schedule:
-    # 24 ghante me 4 baar run hoga (Har 6 ghante me)
-    - cron: '0 */6 * * *'
-  workflow_dispatch: 
+    # Har 30 minute mein run hoga
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
 
 jobs:
   run_scrapio:
