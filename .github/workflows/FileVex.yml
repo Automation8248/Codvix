@@ -1,9 +1,9 @@
 name: FileVex Automation
 
 on:
-  workflow_dispatch:  # GitHub tab se manually Run karne ke liye
+  workflow_dispatch:  # GitHub Actions tab se manually run karne ke liye
   # schedule:
-  #   - cron: '0 0 * * *'  # Agar daily run karna ho toh is line se '#' hata dein
+  #   - cron: '0 0 * * *'  # Daily automatic run ke liye is line se '#' hata dein
 
 jobs:
   download-and-save:
@@ -29,5 +29,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: FileVex-Downloads
-          path: downloads/  
+          path: FileVex/downloads/  # Updated path as per your Python script
           retention-days: 5
