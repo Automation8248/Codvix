@@ -1,4 +1,17 @@
 {
     "completed_folders": [],
-    "folder_progress": {}
+    "folder_progress": {
+        "Birds": [
+            "Parrot Photography",
+            "Sparrow Photography",
+            "Peacock Photography",
+            "Eagle Photography",
+            "Owl Photography",
+            "Kingfisher Photography",
+            "Hummingbird Photography",
+            "Crow Photography",
+            "Pigeon Photography",
+            "Falcon Photography"
+        ]
+    }
 }
