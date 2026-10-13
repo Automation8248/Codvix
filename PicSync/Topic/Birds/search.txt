@@ -1,508 +1,79 @@
-Peacock photography
-Peahen photography
-Indian Peafowl photography
-Common Ostrich photography
-Somali Ostrich photography
-Emu photography
-Southern Cassowary photography
-Northern Cassowary photography
-Kiwi photography
-Greater Rhea photography
-Lesser Rhea photography
-Chicken photography
-Hen photography
-Rooster photography
-Turkey photography
-Guinea Fowl photography
-Quail photography
-Japanese Quail photography
-Common Pheasant photography
-Golden Pheasant photography
-Lady Amherst Pheasant photography
-Red Junglefowl photography
-Grey Junglefowl photography
-Swan photography
-Mute Swan photography
-Black Swan photography
-Trumpeter Swan photography
-Whooper Swan photography
-Tundra Swan photography
-Goose photography
-Greylag Goose photography
-Canada Goose photography
-Snow Goose photography
-Barnacle Goose photography
-Brent Goose photography
-Duck photography
-Mallard photography
-Mandarin Duck photography
-Wood Duck photography
-Muscovy Duck photography
-Pekin Duck photography
-Ruddy Duck photography
-Pintail Duck photography
-Teal Duck photography
-Shoveler Duck photography
-Eider Duck photography
-Merganser photography
-Muscovy Duck photography
-Pigeon photography
-Rock Pigeon photography
-Wood Pigeon photography
-Nicobar Pigeon photography
-Victoria Crowned Pigeon photography
-Band-Tailed Pigeon photography
-Dove photography
-Mourning Dove photography
-Eurasian Collared Dove photography
-Laughing Dove photography
-Spotted Dove photography
-Zebra Dove photography
-Diamond Dove photography
-Parrot photography
-African Grey Parrot photography
-Blue-and-Yellow Macaw photography
-Scarlet Macaw photography
-Hyacinth Macaw photography
-Green-Winged Macaw photography
-Cockatoo photography
-Sulphur-Crested Cockatoo photography
-Palm Cockatoo photography
-Cockatiel photography
-Budgerigar photography
-Lovebird photography
-Indian Ringneck Parakeet photography
-Alexandrine Parakeet photography
-Monk Parakeet photography
-Eclectus Parrot photography
-Sun Conure photography
-Green-Cheeked Conure photography
-Lorikeet photography
-Lory photography
-Kea photography
-Kakapo photography
-Parrotlet photography
-Amazon Parrot photography
-Pionus Parrot photography
-Toucan photography
-Toco Toucan photography
-Keel-Billed Toucan photography
-Channel-Billed Toucan photography
-Hornbill photography
-Great Hornbill photography
-Rhinoceros Hornbill photography
-Oriental Pied Hornbill photography
-Malabar Pied Hornbill photography
-Hoopoe photography
-Kingfisher photography
-Common Kingfisher photography
-Pied Kingfisher photography
-White-Throated Kingfisher photography
-Belted Kingfisher photography
-Stork-Billed Kingfisher photography
-Crested Kingfisher photography
-Bee-Eater photography
-Blue-Tailed Bee-Eater photography
-Green Bee-Eater photography
-European Bee-Eater photography
-Roller photography
-Indian Roller photography
-European Roller photography
-Lilac-Breasted Roller photography
-Woodpecker photography
-Great Spotted Woodpecker photography
-Black Woodpecker photography
-Pileated Woodpecker photography
-Downy Woodpecker photography
-Hairy Woodpecker photography
-Green Woodpecker photography
-Flamingo photography
-Greater Flamingo photography
-Lesser Flamingo photography
-Chilean Flamingo photography
-American Flamingo photography
-Pelican photography
-Great White Pelican photography
-Dalmatian Pelican photography
-Brown Pelican photography
-Cormorant photography
-Great Cormorant photography
-Little Cormorant photography
-Anhinga photography
-Darter photography
-Heron photography
-Grey Heron photography
-Purple Heron photography
-Great Blue Heron photography
-Black-Crowned Night Heron photography
-Green Heron photography
-Egret photography
-Great Egret photography
-Little Egret photography
-Cattle Egret photography
-Intermediate Egret photography
-Snowy Egret photography
-Bittern photography
-Crane photography
-Sarus Crane photography
-Demoiselle Crane photography
-Common Crane photography
-Sandhill Crane photography
-Whooping Crane photography
-Grey Crowned Crane photography
-Stork photography
-Painted Stork photography
-Asian Openbill photography
-Black Stork photography
-White Stork photography
-Marabou Stork photography
-Jabiru photography
-Ibis photography
-Sacred Ibis photography
-Glossy Ibis photography
-Black-Headed Ibis photography
-Spoonbill photography
-Roseate Spoonbill photography
-Eurasian Spoonbill photography
-Rail photography
-Water Rail photography
-Corncrake photography
-Coot photography
-Moorhen photography
-Jacana photography
-Pheasant-Tailed Jacana photography
-Bronze-Winged Jacana photography
-Sandpiper photography
-Common Sandpiper photography
-Wood Sandpiper photography
-Green Sandpiper photography
-Curlew Sandpiper photography
-Snipe photography
-Common Snipe photography
-Woodcock photography
-Oystercatcher photography
-Avocet photography
-Black-Winged Stilt photography
-Lapwing photography
-Red-Wattled Lapwing photography
-Northern Lapwing photography
-Plover photography
-Little Ringed Plover photography
-Kentish Plover photography
-Golden Plover photography
-Dunlin photography
-Ruff photography
-Godwit photography
-Curlew photography
-Whimbrel photography
-Turnstone photography
-Gull photography
-Black-Headed Gull photography
-Herring Gull photography
-Laughing Gull photography
-Great Black-Backed Gull photography
-Seagull photography
-Tern photography
-Arctic Tern photography
-Common Tern photography
-Caspian Tern photography
-Black Tern photography
-Skimmer photography
-Albatross photography
-Wandering Albatross photography
-Black-Browed Albatross photography
-Petrel photography
-Storm Petrel photography
-Shearwater photography
-Puffin photography
-Atlantic Puffin photography
-Gannet photography
-Booby photography
-Blue-Footed Booby photography
-Frigatebird photography
-Magnificent Frigatebird photography
-Penguin photography
-Emperor Penguin photography
-King Penguin photography
-Adelie Penguin photography
-Gentoo Penguin photography
-Chinstrap Penguin photography
-African Penguin photography
-Little Blue Penguin photography
-Macaroni Penguin photography
-Rockhopper Penguin photography
-Owl photography
-Barn Owl photography
-Snowy Owl photography
-Great Horned Owl photography
-Eurasian Eagle-Owl photography
-Indian Eagle-Owl photography
-Little Owl photography
-Burrowing Owl photography
-Tawny Owl photography
-Barred Owl photography
-Spotted Owlet photography
-Eagle photography
-Bald Eagle photography
-Golden Eagle photography
-Harpy Eagle photography
-White-Tailed Eagle photography
-Steppe Eagle photography
-Tawny Eagle photography
-Booted Eagle photography
-Sea Eagle photography
-Fish Eagle photography
-Snake Eagle photography
-Crested Serpent Eagle photography
-Hawk photography
-Red-Tailed Hawk photography
-Cooper's Hawk photography
-Harris's Hawk photography
-Broad-Winged Hawk photography
-Sparrowhawk photography
-Goshawk photography
-Falcon photography
-Peregrine Falcon photography
-Saker Falcon photography
-Gyrfalcon photography
-Kestrel photography
-American Kestrel photography
-Merlin photography
-Lanner Falcon photography
-Osprey photography
-Vulture photography
-Griffon Vulture photography
-Egyptian Vulture photography
-Bearded Vulture photography
-King Vulture photography
-Black Vulture photography
-Turkey Vulture photography
-Andean Condor photography
-California Condor photography
-Kite photography
-Black Kite photography
-Red Kite photography
-Brahminy Kite photography
-Black-Winged Kite photography
-Harrier photography
-Marsh Harrier photography
-Montagu's Harrier photography
-Secretarybird photography
-Caracara photography
-Hummingbird photography
-Ruby-Throated Hummingbird photography
-Anna's Hummingbird photography
-Bee Hummingbird photography
-Sword-Billed Hummingbird photography
-Sunbird photography
-Purple Sunbird photography
-Crimson Sunbird photography
-Sparrow photography
-House Sparrow photography
-Tree Sparrow photography
-Song Sparrow photography
-Chipping Sparrow photography
-Finch photography
-Goldfinch photography
-House Finch photography
-Zebra Finch photography
-Gouldian Finch photography
-Canary photography
-Bullfinch photography
-Crossbill photography
-Bunting photography
-Cardinal photography
-Northern Cardinal photography
-Pyrrhuloxia photography
-Robin photography
-American Robin photography
-European Robin photography
-Indian Robin photography
-Thrush photography
-Song Thrush photography
-Mistle Thrush photography
-Blackbird photography
-Common Blackbird photography
-Starling photography
-Common Starling photography
-Brahminy Starling photography
-Myna photography
-Common Myna photography
-Hill Myna photography
-Jungle Myna photography
-Wagtail photography
-White Wagtail photography
-Yellow Wagtail photography
-Pipit photography
-Lark photography
-Skylark photography
-Horned Lark photography
-Crested Lark photography
-Swallow photography
-Barn Swallow photography
-Cliff Swallow photography
-Welcome Swallow photography
-Martin photography
-Purple Martin photography
-Swift photography
-Common Swift photography
-House Swift photography
-Tree Swift photography
-Nightjar photography
-Common Nightjar photography
-Nighthawk photography
-Cuckoo photography
-Common Cuckoo photography
-Asian Koel photography
-Greater Coucal photography
-Jacobin Cuckoo photography
-Roadrunner photography
-Greater Roadrunner photography
-Lyrebird photography
-Superb Lyrebird photography
-Fairywren photography
-Superb Fairywren photography
-Wren photography
-House Wren photography
-Starling photography
-Magpie photography
-Eurasian Magpie photography
-Australian Magpie photography
-Jay photography
-Blue Jay photography
-Steller's Jay photography
-Eurasian Jay photography
-Crow photography
-House Crow photography
-Carrion Crow photography
-American Crow photography
-Rook photography
-Raven photography
-Common Raven photography
-Thick-Billed Raven photography
-Jackdaw photography
-Jungle Babbler photography
-Common Babbler photography
-Laughingthrush photography
-Bulbul photography
-Red-Whiskered Bulbul photography
-Red-Vented Bulbul photography
-White-Eared Bulbul photography
-Black Bulbul photography
-Oriole photography
-Eurasian Golden Oriole photography
-Black-Naped Oriole photography
-Drongo photography
-Black Drongo photography
-Greater Racket-Tailed Drongo photography
-Fantail photography
-Paradise Flycatcher photography
-Asian Paradise Flycatcher photography
-Monarch Flycatcher photography
-Flycatcher photography
-Red-Breasted Flycatcher photography
-Verditer Flycatcher photography
-Pitta photography
-Indian Pitta photography
-Fairy Pitta photography
-Antbird photography
-Ovenbird photography
-Warbler photography
-Willow Warbler photography
-Reed Warbler photography
-Leaf Warbler photography
-Blackcap photography
-Whitethroat photography
-Chiffchaff photography
-Tit photography
-Great Tit photography
-Blue Tit photography
-Coal Tit photography
-Long-Tailed Tit photography
-Nuthatch photography
-Treecreeper photography
-Creeper photography
-Waxwing photography
-Bohemian Waxwing photography
-Shrike photography
-Long-Tailed Shrike photography
-Brown Shrike photography
-Butcherbird photography
-Bowerbird photography
-Satin Bowerbird photography
-Bird-of-Paradise photography
-Greater Bird-of-Paradise photography
-Wilson's Bird-of-Paradise photography
-King Bird-of-Paradise photography
-Superb Bird-of-Paradise photography
-Manakin photography
-Cock-of-the-Rock photography
-Cotinga photography
-Tanager photography
-Scarlet Tanager photography
-Blue-Grey Tanager photography
-Honeycreeper photography
-I'iwi photography
-Kookaburra photography
-Laughing Kookaburra photography
-Lyrebird photography
-Weaver Bird photography
-Baya Weaver photography
-Sociable Weaver photography
-Village Weaver photography
-Waxbill photography
-Red Avadavat photography
-Scaly-Breasted Munia photography
-Java Sparrow photography
-Pine Siskin photography
-Junco photography
-Towhee photography
-Grosbeak photography
-Evening Grosbeak photography
-Rose-Breasted Grosbeak photography
-Troupial photography
-Blackbird photography
-Cowbird photography
-Grackle photography
-Meadowlark photography
-Bobolink photography
-Cacique photography
-Oriole photography
-Puffbird photography
-Jacamar photography
-Motmot photography
-Quetzal photography
-Resplendent Quetzal photography
-Turaco photography
-Hoatzin photography
-Sunbittern photography
-Seriema photography
-Bustard photography
-Great Indian Bustard photography
-Kori Bustard photography
-Florican photography
-Lesser Florican photography
-Buttonquail photography
-Tinamous photography
-Guineafowl photography
-Potoo photography
-Oilbird photography
-Frogmouth photography
-Tawny Frogmouth photography
-Mousebird photography
-Sandgrouse photography
-Pigeon Guillemot photography
-Guillemot photography
-Razorbill photography
-Dovekie photography
-Skua photography
-Jaeger photography
-Kagu photography
-Takahe photography
-Kakī photography
-Weka photography
-Pukeko photography
-Tropicbird photography
-Red-Billed Tropicbird photography
-White-Tailed Tropicbird photography
-Red-Footed Tropicbird photography
+Parrot Photography
+Sparrow Photography
+Peacock Photography
+Eagle Photography
+Owl Photography
+Kingfisher Photography
+Hummingbird Photography
+Crow Photography
+Pigeon Photography
+Falcon Photography
+Hawk Photography
+Vulture Photography
+Flamingo Photography
+Pelican Photography
+Swan Photography
+Duck Photography
+Goose Photography
+Crane Photography
+Stork Photography
+Heron Photography
+Egret Photography
+Ibis Photography
+Hornbill Photography
+Woodpecker Photography
+Barbet Photography
+Bulbul Photography
+Myna Photography
+Robin Photography
+Magpie Photography
+Cuckoo Photography
+Koel Photography
+Nightingale Photography
+Swallow Photography
+Swift Photography
+Sunbird Photography
+Oriole Photography
+Drongo Photography
+Babbler Photography
+Lark Photography
+Finch Photography
+Weaver Photography
+Starling Photography
+Warbler Photography
+Wagtail Photography
+Shrike Photography
+Bee-eater Photography
+Roller Photography
+Hoopoe Photography
+Partridge Photography
+Quail Photography
+Pheasant Photography
+Junglefowl Photography
+Francolin Photography
+Sandpiper Photography
+Plover Photography
+Lapwing Photography
+Tern Photography
+Gull Photography
+Cormorant Photography
+Darter Photography
+Osprey Photography
+Kite Photography
+Harrier Photography
+Buzzard Photography
+Kestrel Photography
+Penguin Photography
+Ostrich Photography
+Emu Photography
+Toucan Photography
+Macaw Photography
+Cockatoo Photography
+Lovebird Photography
+Parakeet Photography
+Canary Photography
+Cardinal Photography
+Blue Jay Photography
+Bald Eagle Photography
+Snowy Owl Photography
+Paradise Flycatcher Photography
