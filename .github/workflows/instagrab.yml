@@ -2,7 +2,7 @@ name: IG to ShreeCloud Auto-Uploader
 
 on:
   schedule:
-    - cron: '*/05 * * * *'
+    - cron: '*/15 * * * *'
   workflow_dispatch:
 
 permissions:
@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Rebase ke liye full history fetch karna zaroori hota hai
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -59,7 +60,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Initialize tracker files agar wo nahi bane hain toh (Git Error se bachne ke liye)
+          # Initialize tracker files agar wo nahi bane hain
           touch InstaGrab/track.json
           touch InstaGrab/counters.json
           
@@ -69,6 +70,10 @@ jobs:
           
           if ! git diff-index --quiet HEAD; then
             git commit -m "chore: Update track and counters for new reels [skip ci]"
+            
+            # Git push error fix: Latest repo changes fetch and merge karega
+            git pull --rebase origin main
+            
             git push
           else
             echo "No new URLs tracked. Skipping commit."
