@@ -1,5 +1,7 @@
 {
-    "completed_folders": [],
+    "completed_folders": [
+        "Birds"
+    ],
     "folder_progress": {
         "Birds": [
             "Parrot Photography",
@@ -71,7 +73,16 @@
             "Ostrich Photography",
             "Emu Photography",
             "Toucan Photography",
-            "Macaw Photography"
+            "Macaw Photography",
+            "Cockatoo Photography",
+            "Lovebird Photography",
+            "Parakeet Photography",
+            "Canary Photography",
+            "Cardinal Photography",
+            "Blue Jay Photography",
+            "Bald Eagle Photography",
+            "Snowy Owl Photography",
+            "Paradise Flycatcher Photography"
         ]
     }
 }
