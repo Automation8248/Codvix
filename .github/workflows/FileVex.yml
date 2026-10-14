@@ -1,9 +1,10 @@
 name: FileVex Automation
 
 on:
-  workflow_dispatch:  # GitHub Actions tab se manually run karne ke liye
-  # schedule:
-  #   - cron: '0 0 * * *'  # Daily automatic run ke liye is line se '#' hata dein
+  workflow_dispatch:
+
+permissions:
+  contents: write  # GitHub bot ko repo mein changes save karne ki permission
 
 jobs:
   download-and-save:
@@ -25,9 +26,10 @@ jobs:
       - name: Run FileVex Downloader
         run: python FileVex/downloader.py
 
-      - name: Upload Downloaded File
-        uses: actions/upload-artifact@v4
-        with:
-          name: FileVex-Downloads
-          path: FileVex/downloads/  # Updated path as per your Python script
-          retention-days: 5
+      - name: Save File to GitHub Repository
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git add FileVex/downloads/
+          git commit -m "Auto-downloaded file added via FileVex" || echo "No changes to commit"
+          git push
