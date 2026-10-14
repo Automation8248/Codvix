@@ -32,6 +32,6 @@ def download_file(url):
 
 if __name__ == "__main__":
     # Apni file ka URL yahan daalein
-    target_url = "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf"
+    target_url = "https://download938.mediafire.com/lx11gm0jootgcSAq62dszx0mIAm6_AtDseJ6rbjOafY3Tc88VhP-vW8S4QbSLLSssIXtidXZRtNZ4RMV3F9XgfoZkENmRhFJC2-0QghG4OxxCe_RN-eeeDDtQ91C0C3JPzwYdinQqczcGA-pw5JWC5SP1sn8QsOSXALWZoLq3q3Wzg/qqvfybpkoaobdw2/Instagram+Auto+Account+Creator+.py"
     
     download_file(target_url)
