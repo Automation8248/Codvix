@@ -1,6 +1,7 @@
 {
     "completed_folders": [
-        "Birds"
+        "Birds",
+        "Wild Animals"
     ],
     "folder_progress": {
         "Birds": [
@@ -184,7 +185,13 @@
             "Capuchin Wild Animal Photography",
             "Gibbon Wild Animal Photography",
             "Seal Wild Animal Photography",
-            "Sea Lion Wild Animal Photography"
+            "Sea Lion Wild Animal Photography",
+            "Walrus Wild Animal Photography",
+            "Crocodile Wild Animal Photography",
+            "Alligator Wild Animal Photography",
+            "Komodo Dragon Wild Animal Photography",
+            "King Cobra Wild Animal Photography",
+            "Python Wild Animal Photography"
         ]
     }
 }
