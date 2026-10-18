@@ -1,7 +1,8 @@
 {
     "completed_folders": [
         "Birds",
-        "Wild Animals"
+        "Wild Animals",
+        "Animals"
     ],
     "folder_progress": {
         "Birds": [
@@ -293,7 +294,16 @@
             "Slow Loris Animal Photography",
             "Bushbaby Animal Photography",
             "Aye-aye Animal Photography",
-            "Proboscis Monkey Animal Photography"
+            "Proboscis Monkey Animal Photography",
+            "Spider Monkey Animal Photography",
+            "Squirrel Monkey Animal Photography",
+            "Colobus Animal Photography",
+            "Vervet Monkey Animal Photography",
+            "Rhesus Macaque Animal Photography",
+            "Snow Monkey Animal Photography",
+            "Tamarin Animal Photography",
+            "Marmoset Animal Photography",
+            "Siamang Animal Photography"
         ]
     }
 }
