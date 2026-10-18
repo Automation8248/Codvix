@@ -304,6 +304,18 @@
             "Tamarin Animal Photography",
             "Marmoset Animal Photography",
             "Siamang Animal Photography"
+        ],
+        "Arts": [
+            "Abstract Art Photography",
+            "Impressionism Art Photography",
+            "Expressionism Art Photography",
+            "Surrealism Art Photography",
+            "Cubism Art Photography",
+            "Realism Art Photography",
+            "Romanticism Art Photography",
+            "Baroque Art Photography",
+            "Renaissance Art Photography",
+            "Pop Art Photography"
         ]
     }
 }
