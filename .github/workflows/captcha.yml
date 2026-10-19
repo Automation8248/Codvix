@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Manual run ke liye button
+  workflow_dispatch:
 
 jobs:
   extract_text:
@@ -25,8 +25,9 @@ jobs:
           sudo apt-get install -y tesseract-ocr
 
       - name: Install Python Libraries
+        # Yahan numpy add kiya gaya hai
         run: |
-          pip install pytesseract Pillow opencv-python-headless
+          pip install pytesseract Pillow opencv-python-headless numpy
 
       - name: Run Captcha Extractor
         run: |
