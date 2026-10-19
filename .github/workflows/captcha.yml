@@ -4,9 +4,7 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch: # Isse aap manually bhi GitHub par button click karke run kar sakte hain
-  # schedule:
-  #   - cron: '0 0 * * *' # Agar daily automatically run karna ho toh isko uncomment karein
+  workflow_dispatch: # Manual run ke liye button
 
 jobs:
   extract_text:
@@ -28,9 +26,9 @@ jobs:
 
       - name: Install Python Libraries
         run: |
-          pip install pytesseract Pillow
+          pip install pytesseract Pillow opencv-python-headless
 
-      - name: Run Random Image Text Extractor
+      - name: Run Captcha Extractor
         run: |
           cd "Captcha Solve"
           python main.py
