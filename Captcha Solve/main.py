@@ -3,44 +3,56 @@ import random
 from PIL import Image
 import pytesseract
 
-def read_random_image_text():
-    # Folder paths setup
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    images_dir = os.path.join(base_dir, 'images')
+def process_captcha_image():
+    # 1. Script ka exact path nikalna (taki GitHub par path ki error na aaye)
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    images_dir = os.path.join(script_dir, 'images')
     
-    # Check karna ki images folder hai ya nahi
+    print("====== SYSTEM INFO ======")
+    print(f"Script Directory: {script_dir}")
+    print(f"Target Images Folder: {images_dir}")
+    print("=========================\n")
+    
+    # 2. Agar GitHub par images folder upload nahi hua, toh crash hone se bachana
     if not os.path.exists(images_dir):
-        print("Error: 'images' folder nahi mila. Kripya 'images' folder banakar usme images dalein.")
+        print("Warning: 'images' folder nahi mila! Script automatically folder create kar rahi hai...")
+        os.makedirs(images_dir)
+        print("Folder create ho gaya hai. Lekin isme koi image nahi hai. Kripya GitHub par image upload karein.")
         return
 
-    # Folder se valid image files dhundna
+    # 3. Images folder ke andar ki sabhi files ko list karna
+    all_files = os.listdir(images_dir)
+    print(f"Files found in 'images' folder: {all_files}\n")
+
+    # 4. Sirf image files (.png, .jpg, .jpeg, .webp) filter karna (naam kuch bhi ho)
     valid_extensions = ('.png', '.jpg', '.jpeg', '.webp')
-    image_files = [f for f in os.listdir(images_dir) if f.lower().endswith(valid_extensions)]
+    image_files = [f for f in all_files if f.lower().endswith(valid_extensions)]
     
     if not image_files:
-        print("Error: 'images' folder mein koi image file nahi mili.")
+        print("Error: 'images' folder mein koi image file nahi mili. Kripya ek .png, .jpg ya .webp file dalein.")
         return
         
-    # Randomly ek image select karna
+    # 5. List mein se koi ek random image select karna
     target_image = random.choice(image_files)
     image_path = os.path.join(images_dir, target_image)
     
     try:
-        print(f"Randomly selected file: [{target_image}] ko analyze kiya ja raha hai...\n")
+        print(f"-> Processing Image: [{target_image}]...\n")
         
-        # Image open karke text extract karna
+        # 6. Image open karke OCR se text nikalna
         img = Image.open(image_path)
         extracted_text = pytesseract.image_to_string(img)
         
-        print("--- Output Result ---")
+        # 7. Final Output Print Karna
+        print("====== EXTRACTED TEXT ======")
         if extracted_text.strip():
             print(extracted_text.strip())
         else:
-            print("[Blank] Image mein clear text detect nahi hua ya text readable nahi hai.")
-        print("---------------------")
+            print("[Blank] OCR ko image mein koi clear text nahi mila.")
+        print("============================")
         
     except Exception as e:
-        print(f"Execution Error: {e}")
+        print(f"Image Analyze karte waqt error aayi: {e}")
 
 if __name__ == "__main__":
-    read_random_image_text()
+    process_captcha_image()
