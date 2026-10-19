@@ -32,5 +32,5 @@ jobs:
 
       - name: Run Random Image Text Extractor
         run: |
-          cd Captcha Solve # Agar folder ka naam kuch aur hai, toh yahan exact naam dalein
+          cd "Captcha Solve"
           python main.py
