@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import pytesseract
 
-def process_captcha_advanced():
+def process_captcha_exact():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     images_dir = os.path.join(script_dir, 'images')
     
@@ -25,42 +25,43 @@ def process_captcha_advanced():
     try:
         print(f"-> Processing Image: [{target_image}]...\n")
         
-        # 1. Image load karna
         img = cv2.imread(image_path)
         
-        # 2. Image ko 3x bada (resize) karna (Tesseract bade text ko achhe se padhta hai)
-        img = cv2.resize(img, None, fx=3, fy=3, interpolation=cv2.INTER_CUBIC)
+        # 1. Image ko 4x bada karna accuracy ke liye
+        img = cv2.resize(img, None, fx=4, fy=4, interpolation=cv2.INTER_CUBIC)
         
-        # 3. Grayscale mein convert karna
+        # 2. Image ke charo taraf 30 pixels ka white border (padding) add karna
+        # Isse Tesseract letters ko cut nahi karega
+        img = cv2.copyMakeBorder(img, 30, 30, 30, 30, cv2.BORDER_CONSTANT, value=[255, 255, 255])
+        
+        # 3. Grayscale convert
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
-        # 4. Blur apply karna taki background noise (chhote dots) hat jayein
-        blur = cv2.GaussianBlur(gray, (5, 5), 0)
+        # 4. Median Blur (Noise clear karta hai bina text ki quality kharab kiye)
+        blur = cv2.medianBlur(gray, 3)
         
-        # 5. Thresholding (Text ko pure black aur background ko pure white karna)
-        _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        # 5. Adaptive Thresholding (Tilted aur faded letters ko perfect black banata hai)
+        thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 31, 2)
         
-        # 6. Morphological Operations (Agar text patla ya tuta hua hai toh usko fill karna)
-        kernel = np.ones((2, 2), np.uint8)
-        thresh = cv2.dilate(thresh, kernel, iterations=1)
-        thresh = cv2.erode(thresh, kernel, iterations=1)
+        # 6. Tesseract Config
+        # --psm 11 ka matlab hai "Sparse text. Find as much text as possible in no particular order."
+        custom_config = r'--oem 3 --psm 11 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
         
-        # 7. Tesseract Config (PSM 7: Treat image as a single text line)
-        custom_config = r'--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
-        
-        # 8. Text Extract karna
+        # Text extract karna
         extracted_text = pytesseract.image_to_string(thresh, config=custom_config)
-        final_text = extracted_text.strip()
+        
+        # Captcha mein spaces aur naye lines nahi hote, isliye unhe hila kar clean string banana
+        final_text = extracted_text.replace(" ", "").replace("\n", "").strip()
         
         print("====== EXTRACTED TEXT ======")
         if final_text:
             print(final_text)
         else:
-            print("[Blank] OCR ko koi clear text nahi mila. Image jyada distorted hai.")
+            print("[Blank] OCR ko clear text nahi mila.")
         print("============================")
         
     except Exception as e:
-        print(f"Image Analyze karte waqt error aayi: {e}")
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
-    process_captcha_advanced()
+    process_captcha_exact()
