@@ -1,4 +1,4 @@
-name: Image Text Extractor Automation
+name: AI Captcha Solver Automation
 
 on:
   push:
@@ -19,17 +19,11 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Install System Dependencies (Tesseract OCR)
+      - name: Install Python AI Libraries
         run: |
-          sudo apt-get update
-          sudo apt-get install -y tesseract-ocr
+          pip install ddddocr Pillow
 
-      - name: Install Python Libraries
-        # Yahan numpy add kiya gaya hai
-        run: |
-          pip install pytesseract Pillow opencv-python-headless numpy
-
-      - name: Run Captcha Extractor
+      - name: Run AI Captcha Solver
         run: |
           cd "Captcha Solve"
           python main.py
