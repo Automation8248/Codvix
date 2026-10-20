@@ -2,7 +2,8 @@
     "completed_folders": [
         "Birds",
         "Wild Animals",
-        "Animals"
+        "Animals",
+        "Arts"
     ],
     "folder_progress": {
         "Birds": [
@@ -445,7 +446,13 @@
             "Macro Art Photography",
             "Abstract Nature Art Photography",
             "Reflection Art Photography",
-            "Prism Art Photography"
+            "Prism Art Photography",
+            "Bokeh Art Photography",
+            "Smoke Art Photography",
+            "Water Splash Art Photography",
+            "Paint Splash Art Photography",
+            "Powder Art Photography",
+            "Ink in Water Art Photography"
         ]
     }
 }
