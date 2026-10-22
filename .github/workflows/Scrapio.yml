@@ -3,7 +3,7 @@ name: Scrapio Automation
 on:
   schedule:
     # Har 10 minute mein run hoga
-    - cron: '*/10 * * * *'
+    - cron: '*/8 * * * *'
   workflow_dispatch:
 
 jobs:
