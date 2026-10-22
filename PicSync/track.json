@@ -6,7 +6,8 @@
         "Arts",
         "Sun Rise",
         "Sun set",
-        "Cars"
+        "Cars",
+        "Astro"
     ],
     "folder_progress": {
         "Birds": [
@@ -908,7 +909,15 @@
             "Geminids Astro Photography",
             "Leonids Astro Photography",
             "Comet Astro Photography",
-            "Aurora Astro Photography"
+            "Aurora Astro Photography",
+            "Star Trails Astro Photography",
+            "Deep Sky Astro Photography",
+            "Planetary Astro Photography",
+            "Lunar Astro Photography",
+            "Solar Astro Photography",
+            "International Space Station Astro Photography",
+            "Zodiacal Light Astro Photography",
+            "Noctilucent Clouds Astro Photography"
         ]
     }
 }
