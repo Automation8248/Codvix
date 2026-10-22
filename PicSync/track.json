@@ -4,7 +4,8 @@
         "Wild Animals",
         "Animals",
         "Arts",
-        "Sun Rise"
+        "Sun Rise",
+        "Sun set"
     ],
     "folder_progress": {
         "Birds": [
@@ -685,7 +686,17 @@
             "Sunset Wildlife Photography",
             "Sunset Bird Photography",
             "Sunset Landscape Photography",
-            "Sunset Portrait Photography"
+            "Sunset Portrait Photography",
+            "Sunset Couple Photography",
+            "Sunset Wedding Photography",
+            "Sunset Cinematic Photography",
+            "Sunset Minimal Photography",
+            "Sunset Mobile Photography",
+            "Golden Hour Sunset Photography",
+            "Blue Hour Sunset Photography",
+            "Twilight Sunset Photography",
+            "Dusk Sunset Photography",
+            "Evening Sunset Photography"
         ]
     }
 }
