@@ -5,7 +5,8 @@
         "Animals",
         "Arts",
         "Sun Rise",
-        "Sun set"
+        "Sun set",
+        "Cars"
     ],
     "folder_progress": {
         "Birds": [
@@ -828,7 +829,14 @@
             "Mulsanne Cars Photography",
             "Flying Spur Cars Photography",
             "Phantom Cars Photography",
-            "Ghost Cars Photography"
+            "Ghost Cars Photography",
+            "Wraith Cars Photography",
+            "Cullinan Cars Photography",
+            "Ghibli Cars Photography",
+            "Quattroporte Cars Photography",
+            "Levante Cars Photography",
+            "Stelvio Cars Photography",
+            "Giulia Cars Photography"
         ]
     }
 }
