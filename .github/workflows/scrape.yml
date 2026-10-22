@@ -2,9 +2,7 @@ name: Cloudflare Web Scraper
 
 on:
   workflow_dispatch: # Manual trigger
-  schedule:
-    - cron: '0 6 * * *' # Automatic trigger
-
+  
 jobs:
   scrape-job:
     runs-on: ubuntu-latest
