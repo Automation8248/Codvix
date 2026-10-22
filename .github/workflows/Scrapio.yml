@@ -2,8 +2,7 @@ name: Scrapio Automation
 
 on:
   schedule:
-    # 24 ghante, 7 din: IST ke exact :00, :08, :16, :24, :32, :40, :48, :56 minutes par chalega
-    - cron: '2,10,18,26,30,38,46,54 * * * *'
+    - cron: '*/8 * * * *'
   workflow_dispatch:
 
 concurrency:
