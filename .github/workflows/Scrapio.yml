@@ -1,9 +1,7 @@
 name: Scrapio Automation
 
 on:
-  schedule:
-    - cron: '*/8 * * * *'
-  workflow_dispatch:
+  workflow_dispatch: # Sirf API/Manual trigger rahega, internal schedule hata diya gaya hai
 
 concurrency:
   group: scrapio-automation
@@ -15,8 +13,9 @@ jobs:
     permissions:
       contents: write
 
+    # Script ko India Time (IST) par chalane ke liye
     env:
-      TZ: Asia/Kolkata # India ka timezone set kiya hai
+      TZ: Asia/Kolkata
 
     steps:
       - name: Checkout Repository
@@ -47,14 +46,16 @@ jobs:
         run: |
           set -e 
           
+          # GitHub Actions Bot ko set karna
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
           if [ -f "PicSync/track.json" ]; then
             git add PicSync/track.json
             
+            # Agar track.json me sach me koi naya change hai tabhi commit/push hoga
             if ! git diff --staged --quiet; then
-              echo "Changes detected! Committing exactly at IST 8-min interval..."
+              echo "Changes detected! Committing exactly via external cron..."
               
               git commit -m "chore: Update track.json with batch progress via Scrapio"
               git fetch origin main
