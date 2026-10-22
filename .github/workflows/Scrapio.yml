@@ -2,14 +2,13 @@ name: Scrapio Automation
 
 on:
   schedule:
-    # Har 8 minutes mein UTC time ke hisab se run hoga
-    - cron: '*/8 * * * *'
+    # 24 ghante, 7 din: IST ke exact :00, :08, :16, :24, :32, :40, :48, :56 minutes par chalega
+    - cron: '2,10,18,26,30,38,46,54 * * * *'
   workflow_dispatch:
 
-# Concurrency control: Overlapping runs ko rokiyega
 concurrency:
   group: scrapio-automation
-  cancel-in-progress: false # Pichhla task complete hone dega, naye ko queue me rakhega
+  cancel-in-progress: false 
 
 jobs:
   run_scrapio:
@@ -17,12 +16,15 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      TZ: Asia/Kolkata # India ka timezone set kiya hai
+
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0             # Git history fetch karne ke liye (Rebase ke liye zaroori)
-          persist-credentials: true  # Push access ke liye credentials persist karega
+          fetch-depth: 0
+          persist-credentials: true  
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -31,7 +33,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          set -e # Fail-fast behavior: agar koi command fail ho to aage run na ho
+          set -e
           python -m pip install --upgrade pip
           pip install requests PyGithub
 
@@ -44,34 +46,26 @@ jobs:
 
       - name: Commit track.json updates safely
         run: |
-          set -e # Fail-fast behavior
+          set -e 
           
-          # 1. GitHub Actions Bot ki identity set karna
           git config --global user.name 'github-actions[bot]'
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           
-          # 2. File ki existence check karna aur safely staging area me add karna
           if [ -f "PicSync/track.json" ]; then
             git add PicSync/track.json
             
-            # 3. Check karna ki file me actually koi naya change hai ya nahi
             if ! git diff --staged --quiet; then
-              echo "Changes detected in track.json. Committing..."
+              echo "Changes detected! Committing exactly at IST 8-min interval..."
               
-              # Pehle commit karein (uncommitted changes ke sath rebase fail ho jata hai)
               git commit -m "chore: Update track.json with batch progress via Scrapio"
-              
-              # 4. Remote state fetch karna aur rebase karna (stale-branch conflicts avoid karne ke liye)
               git fetch origin main
               git rebase origin/main
-              
-              # 5. Risky pull/push sequence ki jagah direct HEAD:main push karna
               git push origin HEAD:main
               
-              echo "Changes successfully pushed to main branch."
+              echo "Push successful!"
             else
-              echo "track.json me koi change nahi hua. Push skip kiya gaya."
+              echo "No new changes in track.json. Skip push."
             fi
           else
-            echo "PicSync/track.json file nahi mili. Commit skip kiya gaya."
+            echo "track.json not found. Skip commit."
           fi
