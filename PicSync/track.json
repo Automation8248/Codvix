@@ -837,6 +837,18 @@
             "Levante Cars Photography",
             "Stelvio Cars Photography",
             "Giulia Cars Photography"
+        ],
+        "Astro": [
+            "Moon Astro Photography",
+            "Sun Astro Photography",
+            "Mercury Astro Photography",
+            "Venus Astro Photography",
+            "Mars Astro Photography",
+            "Jupiter Astro Photography",
+            "Saturn Astro Photography",
+            "Uranus Astro Photography",
+            "Neptune Astro Photography",
+            "Pluto Astro Photography"
         ]
     }
 }
