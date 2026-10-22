@@ -3,7 +3,8 @@
         "Birds",
         "Wild Animals",
         "Animals",
-        "Arts"
+        "Arts",
+        "Sun Rise"
     ],
     "folder_progress": {
         "Birds": [
@@ -544,7 +545,15 @@
             "Sunrise Drone Photography",
             "Sunrise Wildlife Photography",
             "Sunrise Bird Photography",
-            "Sunrise Landscape Photography"
+            "Sunrise Landscape Photography",
+            "Sunrise Portrait Photography",
+            "Sunrise Wedding Photography",
+            "Sunrise Cinematic Photography",
+            "Sunrise Minimal Photography",
+            "Sunrise Mobile Photography",
+            "Blue Hour Sunrise Photography",
+            "Dawn Sunrise Photography",
+            "Early Morning Sunrise Photography"
         ]
     }
 }
