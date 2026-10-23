@@ -9,7 +9,8 @@
         "Cars",
         "Astro",
         "Usa Explore",
-        "Flowers"
+        "Flowers",
+        "Architecture"
     ],
     "folder_progress": {
         "Birds": [
@@ -1243,7 +1244,17 @@
             "Flatiron Building Architecture Photography",
             "Transamerica Pyramid Architecture Photography",
             "Salesforce Tower Architecture Photography",
-            "Hoover Dam Architecture Photography"
+            "Hoover Dam Architecture Photography",
+            "Gateway Arch Architecture Photography",
+            "Sunshine Skyway Bridge Architecture Photography",
+            "Millau Viaduct Architecture Photography",
+            "Akashi Kaikyo Bridge Architecture Photography",
+            "Golden Gate Bridge Architecture Photography",
+            "Sydney Harbour Bridge Architecture Photography",
+            "Helix Bridge Architecture Photography",
+            "Bandra-Worli Sea Link Architecture Photography",
+            "Chenab Bridge Architecture Photography",
+            "Pamban Bridge Architecture Photography"
         ]
     }
 }
