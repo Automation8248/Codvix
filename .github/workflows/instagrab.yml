@@ -1,4 +1,4 @@
-name: IG to ShreeCloud Auto-Uploader
+name: IG to N8N Orchestrator
 
 on:
   schedule:
@@ -10,14 +10,14 @@ permissions:
 
 jobs:
   automation:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0  # Rebase ke liye full history fetch karna zaroori hota hai
+          fetch-depth: 0 
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -27,53 +27,30 @@ jobs:
       - name: Install Dependencies
         run: |
           cd InstaGrab
-          pip install -r requirements.txt
-          playwright install chromium
-          playwright install-deps
+          pip install requests
 
-      - name: Determine Trigger Type for Recording
-        id: check_trigger
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "IS_MANUAL_RUN=true" >> $GITHUB_ENV
-          else
-            echo "IS_MANUAL_RUN=false" >> $GITHUB_ENV
-          fi
-
-      - name: Run Automation Script
+      - name: Run Orchestrator Script
         env:
           ELITE_CLOUD_API_KEY: ${{ secrets.ELITE_CLOUD_API_KEY }}
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
         run: |
           cd InstaGrab
           python main.py
-
-      - name: Upload Screen Recordings (If Manual)
-        if: ${{ github.event_name == 'workflow_dispatch' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: screen-recordings
-          path: InstaGrab/recordings/
-          retention-days: 3
 
       - name: Save tracking files back to Repository
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Initialize tracker files agar wo nahi bane hain
           touch InstaGrab/track.json
           touch InstaGrab/counters.json
           
-          # Dono files ko git me add karna
           git add InstaGrab/track.json
           git add InstaGrab/counters.json
           
           if ! git diff-index --quiet HEAD; then
             git commit -m "chore: Update track and counters for new reels [skip ci]"
-            
-            # Git push error fix: Latest repo changes fetch and merge karega
             git pull --rebase origin main
-            
             git push
           else
             echo "No new URLs tracked. Skipping commit."
