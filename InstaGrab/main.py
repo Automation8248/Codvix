@@ -1,74 +1,12 @@
 import os
 import re
-import random
-import asyncio
+import time
 import requests
 import json
-from playwright.async_api import async_playwright
-from playwright_stealth import stealth_async
 
 API_KEY = os.environ.get("ELITE_CLOUD_API_KEY")
-UPLOAD_URL = "https://shreecloud.up.railway.app/api/v1/upload"
-
-# 50+ Hardcoded Diverse User-Agents
-USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_3_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Safari/605.1.15",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_2_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Safari/605.1.15",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:122.0) Gecko/20100101 Firefox/122.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:123.0) Gecko/20100101 Firefox/123.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:122.0) Gecko/20100101 Firefox/122.0",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_2_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPhone; CPU iPhone OS 16_7_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPad; CPU OS 17_3_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (iPad; CPU OS 16_7_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.6 Mobile/15E148 Safari/604.1",
-    "Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 14; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 14; Pixel 8 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 14; Pixel 7a) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; SM-A546B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 13; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 12; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Windows NT 11.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:115.0) Gecko/20100101 Firefox/115.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 11_6_8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36 OPR/106.0.0.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 12_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.1 Safari/605.1.15",
-    "Mozilla/5.0 (Linux; Android 11; SM-G991B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:120.0) Gecko/20100101 Firefox/120.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:122.0) Gecko/20100101 Firefox/122.0",
-    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 10; SM-A505F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 12; M2101K6G) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:109.0) Gecko/20100101 Firefox/115.0",
-    "Mozilla/5.0 (X11; Linux i686; rv:110.0) Gecko/20100101 Firefox/110.0",
-    "Mozilla/5.0 (Linux; Android 11; Redmi Note 9 Pro) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/118.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 OPR/100.0.0.0",
-    "Mozilla/5.0 (Linux; Android 13; 2201117TG) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:118.0) Gecko/20100101 Firefox/118.0",
-    "Mozilla/5.0 (Linux; Android 13; SM-A536B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 12; V2049) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Linux; Android 10; JNY-LX1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/117.0.0.0 Mobile Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.1.2 Safari/605.1.15"
-]
+WEBHOOK_URL = os.environ.get("N8N_WEBHOOK_URL")  # Naya secret variable
+FILES_API_URL = "https://shreecloud.up.railway.app/api/v1/files"
 
 TRACK_FILE = "track.json"
 COUNTER_FILE = "counters.json"
@@ -108,138 +46,39 @@ def update_counter(username, count):
     with open(COUNTER_FILE, "w") as f:
         json.dump(counters, f, indent=4)
 
-async def human_delay():
-    delay = random.uniform(6.0, 10.0)
-    await asyncio.sleep(delay)
-
-async def specific_wait_delay():
-    delay = random.uniform(6.8, 7.5)
-    print(f"Waiting for {delay:.2f} seconds before checking for video...")
-    await asyncio.sleep(delay)
-
 def get_username(url):
     match = re.search(r'instagram\.com/([^/]+)/', url)
     return match.group(1) if match else "unknown_user"
 
-def upload_to_shreecloud_sync(file_path):
+def check_file_in_elite_cloud(filename):
+    print(f"Checking Elite Cloud for file: {filename}...")
     if not API_KEY:
-        return False, "API Key Missing"
+        print("Error: ELITE_CLOUD_API_KEY Missing!")
+        return False
+        
     headers = {"X-API-Key": API_KEY}
-    
-    files = {'file': (os.path.basename(file_path), open(file_path, 'rb'), 'video/mp4')}
-    
     try:
-        response = requests.post(UPLOAD_URL, headers=headers, files=files)
+        response = requests.get(FILES_API_URL, headers=headers)
         if response.status_code == 200:
-            return True, "Success"
-        return False, f"Failed: {response.status_code}"
-    except Exception as e:
-        return False, str(e)
-
-async def process_link(context, link):
-    page = await context.new_page()
-    await stealth_async(page)
-    username = get_username(link)
-    
-    try:
-        print(f"Processing single link for username: {username}")
-        
-        await page.goto("https://videodropper.app/", timeout=60000)
-        await human_delay() 
-        
-        await page.mouse.wheel(0, random.randint(300, 700))
-        await human_delay()
-        
-        await page.mouse.move(random.randint(100, 500), random.randint(100, 500))
-        await human_delay() 
-        
-        await page.mouse.wheel(0, -random.randint(200, 500))
-        await human_delay() 
-
-        input_selector = "input[placeholder*='aste'], input[name='url'], input[type='text'], input[type='url']" 
-        await page.wait_for_selector(input_selector)
-        
-        await page.hover(input_selector)
-        await human_delay() 
-        
-        await page.click(input_selector)
-        await human_delay()
-        
-        print("Pasting URL...")
-        await page.fill(input_selector, link)
-        
-        fetch_btn = "button[type='submit'], button:has-text('Download')"
-        await page.hover(fetch_btn)
-        await human_delay() 
-        await page.click(fetch_btn)
-        
-        await specific_wait_delay() 
-
-        download_btn = "a[download], a:has-text('Download Video'), a.button, button:has-text('Download')"
-        await page.wait_for_selector(download_btn, timeout=45000)
-        
-        await page.hover(download_btn)
-        await human_delay()
-        
-        print("Video visible! Starting download...")
-        async with page.expect_download() as download_info:
-            await page.click(download_btn)
-        
-        await human_delay()
-        download = await download_info.value
-        
-        counters = load_counters()
-        current_count = counters.get(username, 0)
-        new_count = current_count + 1
-        
-        video_filename = f"{username}.{new_count}.mp4"
-        
-        os.makedirs("downloads", exist_ok=True)
-        file_path = f"downloads/{video_filename}"
-        
-        await download.save_as(file_path)
-        await human_delay()
-        
-        ui_script_start = """
-        () => {
-            let el = document.createElement('div');
-            el.id = 'upload-status-overlay';
-            el.style.cssText = 'position:fixed; top:50%; left:50%; transform:translate(-50%, -50%); z-index:999999; background:rgba(0,0,0,0.9); color:white; padding:40px; border-radius:15px; font-size:30px; text-align:center; box-shadow: 0 0 20px rgba(255,255,255,0.5); font-family:sans-serif; width: 80%;';
-            el.innerHTML = '⏳ <b>System Status:</b> Uploading <u>' + """ + f"'{video_filename}'" + """ + '</u> to ShreeCloud<br><span style="font-size:20px; color:yellow; margin-top:10px; display:block;">Please wait...</span>';
-            document.body.appendChild(el);
-        }
-        """
-        await page.evaluate(ui_script_start)
-        await human_delay() 
-        
-        success, msg = await asyncio.to_thread(upload_to_shreecloud_sync, file_path)
-        
-        await human_delay() 
-        
-        if success:
-            ui_script_end = """() => { document.getElementById('upload-status-overlay').innerHTML = '✅ <b>System Status:</b> Upload Successful!<br><span style="font-size:20px; color:lime; margin-top:10px; display:block;">Saved as: ' + """ + f"'{video_filename}'" + """ + '</span>'; }"""
+            # Agar generate kiya hua filename API response mein maujud hai
+            if filename in response.text:
+                return True
+            else:
+                return False
         else:
-            ui_script_end = """() => { document.getElementById('upload-status-overlay').innerHTML = '❌ <b>System Status:</b> Upload Failed!<br><span style="font-size:20px; color:red; margin-top:10px; display:block;">Error: ' + """ + f"'{msg}'" + """ + '</span>'; }"""
-            
-        await page.evaluate(ui_script_end)
-        await human_delay() 
-        await page.mouse.wheel(0, 500)
-        await human_delay() 
-        
-        if success:
-            save_tracked_link(link)
-            update_counter(username, new_count)
-
+            print(f"Error checking files. Status: {response.status_code}")
+            return False
     except Exception as e:
-        print(f"Error processing link {link}: {e}")
-    finally:
-        await human_delay()
-        await page.close()
-        await human_delay()
+        print(f"API Check Error: {e}")
+        return False
 
-async def main():
+def main():
     init_files()
-
+    
+    if not WEBHOOK_URL:
+        print("Error: N8N_WEBHOOK_URL is not set in secrets!")
+        return
+        
     if not os.path.exists("link.txt"):
         print("link.txt not found!")
         return
@@ -254,32 +93,54 @@ async def main():
         print("No new links to process.")
         return
 
+    # Select single target link
     target_link = links[0]
-    print(f"Target link selected for this run: {target_link}")
-
-    is_manual_run = os.environ.get("IS_MANUAL_RUN") == "true"
-    record_dir = "recordings/" if is_manual_run else None
-
-    if is_manual_run:
-        print("Manual Trigger detected. Screen recording is ON.")
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True)
-        random_agent = random.choice(USER_AGENTS)
-        print(f"Randomly selected User-Agent: {random_agent}")
-
-        context = await browser.new_context(
-            user_agent=random_agent, 
-            viewport={"width": random.randint(1280, 1920), "height": random.randint(720, 1080)},
-            record_video_dir=record_dir
-        )
-
-        await human_delay()
-        await process_link(context, target_link)
+    username = get_username(target_link)
+    
+    counters = load_counters()
+    current_count = counters.get(username, 0)
+    new_count = current_count + 1
+    
+    video_filename = f"{username}.{new_count}.mp4"
+    
+    print(f"Target Link: {target_link}")
+    print(f"Allocated Filename: {video_filename}")
+    
+    # 1. N8N Webhook par payload send karna
+    webhook_payload = {
+        "instagram_url": target_link,
+        "filename": video_filename,
+        "username": username
+    }
+    
+    try:
+        print("Sending task to N8N Webhook...")
+        response = requests.post(WEBHOOK_URL, json=webhook_payload)
+        if response.status_code in [200, 201]:
+            print("Webhook triggered successfully.")
+        else:
+            print(f"Webhook failed with status: {response.status_code}, response: {response.text}")
+            return
+    except Exception as e:
+        print(f"Failed to trigger webhook: {e}")
+        return
         
-        await context.close()
-        await browser.close()
-        print("Run Complete.")
+    # 2. Wait for 5 minutes (300 seconds)
+    print("Waiting for 5 minutes for N8N to process and upload...")
+    time.sleep(300)
+    
+    # 3. Verify on Elite Cloud
+    is_verified = check_file_in_elite_cloud(video_filename)
+    
+    # 4. JSON Update Logic
+    if is_verified:
+        print(f"✅ Verification Successful! '{video_filename}' found in Elite Cloud.")
+        save_tracked_link(target_link)
+        update_counter(username, new_count)
+        print("track.json and counters.json updated.")
+    else:
+        print(f"❌ Verification Failed! '{video_filename}' was NOT found in Elite Cloud.")
+        print("JSON files will NOT be updated. Script will retry this link on next run.")
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
