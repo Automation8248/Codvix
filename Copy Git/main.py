@@ -22,7 +22,6 @@ def main():
         "Accept": "application/vnd.github.v3+json"
     }
     
-    # Gateway source code private rakhna safe rehta hai
     data = {
         "name": new_repo_name,
         "private": True,
@@ -40,27 +39,33 @@ def main():
         print(f"❌ Failed to create repo: {response.text}")
         sys.exit(1)
 
-    # 3. Target URL se pura Git Copy (Mirror clone) karna
+    # 3. Target URL se pura Git Copy (Bare clone) karna
     clone_dir = "temp_repo_clone"
     if os.path.exists(clone_dir):
         shutil.rmtree(clone_dir)
 
-    print(f"Cloning from: {target_url} (Mirroring all branches/commits)...")
-    subprocess.run(["git", "clone", "--mirror", target_url, clone_dir], check=True)
+    print(f"Cloning from: {target_url} (Fetching all data)...")
+    subprocess.run(["git", "clone", "--bare", target_url, clone_dir], check=True)
 
-    # 4. Naye Repo mein sab kuch push karna
+    # 4. Naye Repo mein sirf branches aur tags push karna (PRs ko ignore karke)
     os.chdir(clone_dir)
     
     # Authentication ke liye token URL mein add karna
     new_repo_url = f"https://{github_user}:{universal_token}@github.com/{github_user}/{new_repo_name}.git"
 
-    print(f"Pushing full git history to {new_repo_name}...")
-    push_process = subprocess.run(["git", "push", "--mirror", new_repo_url])
+    print(f"Pushing branches and tags to {new_repo_name} (Ignoring hidden Pull Requests)...")
+    
+    # Yahan push command change ki gayi hai taki sirf valid code (heads aur tags) push ho
+    push_process = subprocess.run([
+        "git", "push", new_repo_url, 
+        "+refs/heads/*:refs/heads/*", 
+        "+refs/tags/*:refs/tags/*"
+    ])
     
     if push_process.returncode == 0:
         print("🎉 All done! Pura git repository successfully copy aur save ho gaya hai.")
     else:
-        print("❌ Push failed. Please check your UNIVERSAL_TOKEN permissions.")
+        print("❌ Push failed. Please check the logs above.")
         sys.exit(1)
 
 if __name__ == "__main__":
