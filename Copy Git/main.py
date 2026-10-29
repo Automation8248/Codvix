@@ -8,17 +8,17 @@ def main():
     # 1. Inputs fetch karna Action ke environment se
     target_url = os.environ.get("TARGET_GIT_URL")
     new_repo_name = os.environ.get("NEW_REPO_NAME")
-    gh_token = os.environ.get("GH_TOKEN")
+    github_token = os.environ.get("GITHUB_TOKEN")
     github_user = os.environ.get("GITHUB_USER")
 
-    if not gh_token:
-        print("Error: GH_TOKEN secret is missing! Repository settings me secret add karein.")
+    if not github_token:
+        print("Error: GITHUB_TOKEN is missing! Repository settings me secret add karein.")
         sys.exit(1)
 
     # 2. GitHub API se aapke account mein naya Repository create karna
     api_url = "https://api.github.com/user/repos"
     headers = {
-        "Authorization": f"token {gh_token}",
+        "Authorization": f"token {github_token}",
         "Accept": "application/vnd.github.v3+json"
     }
     
@@ -52,7 +52,7 @@ def main():
     os.chdir(clone_dir)
     
     # Authentication ke liye token URL mein add karna
-    new_repo_url = f"https://{github_user}:{gh_token}@github.com/{github_user}/{new_repo_name}.git"
+    new_repo_url = f"https://{github_user}:{github_token}@github.com/{github_user}/{new_repo_name}.git"
 
     print(f"Pushing full git history to {new_repo_name}...")
     push_process = subprocess.run(["git", "push", "--mirror", new_repo_url])
@@ -60,7 +60,7 @@ def main():
     if push_process.returncode == 0:
         print("🎉 All done! Pura git repository successfully copy aur save ho gaya hai.")
     else:
-        print("❌ Push failed. Please check your GH_TOKEN permissions.")
+        print("❌ Push failed. Please check your token permissions.")
         sys.exit(1)
 
 if __name__ == "__main__":
