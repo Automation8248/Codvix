@@ -25,6 +25,8 @@ jobs:
           pip install requests
 
       - name: Run Music Downloader Script
+        env:
+          PIXABAY_KEY: ${{ secrets.PIXABAY_KEY }} # Injecting API Key here
         run: |
           python "Music Downloader/download_music.py"
 
@@ -37,6 +39,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "No new music downloaded."
           else
-            git commit -m "chore: auto-downloaded 20 soft piano background music files"
+            git commit -m "chore: auto-downloaded 20 soft piano background music files via API"
             git push
           fi
