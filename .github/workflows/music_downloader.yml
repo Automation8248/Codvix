@@ -1,12 +1,9 @@
-name: Background Music Downloader
+name: Pixabay Background Music Downloader
 
 on:
-  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  workflow_dispatch: 
   schedule:
-    - cron: '0 0 * * 0' # Runs automatically once a week (optional)
-
-permissions:
-  contents: write
+    - cron: '0 0 * * 0' 
 
 jobs:
   download-and-commit:
@@ -14,10 +11,12 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GH_TOKEN }} 
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
@@ -31,14 +30,13 @@ jobs:
 
       - name: Commit and Push Changes
         run: |
-          git config --global user.name "Pushpendra Kumar Singh"
-          git config --global user.email "pushpendrakumarsingh4177@gmail.com"
+          git config --global user.name "Rahul"
+          git config --global user.email "singhrahul41771@gmail.com"
           git add "Intresting Fact/music/"
           
-          # Only commit if there are new files
           if git diff --staged --quiet; then
             echo "No new music downloaded."
           else
-            git commit -m "chore: auto-downloaded new soft piano background music"
+            git commit -m "chore: auto-downloaded 20 soft piano background music files"
             git push
           fi
