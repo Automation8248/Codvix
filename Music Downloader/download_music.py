@@ -1,5 +1,4 @@
 import os
-import re
 import time
 import requests
 
@@ -8,36 +7,45 @@ TARGET_DIR = "Intresting Fact/music"
 os.makedirs(TARGET_DIR, exist_ok=True)
 
 def download_pixabay_music():
-    print("Fetching soft piano background music from Pixabay...")
+    print("Fetching soft piano background music using Pixabay API...")
     
-    # Naya search link jo aapne diya hai
-    search_url = "https://pixabay.com/music/search/soft%20piano%20background%20music/?manual_search=20"
+    # GitHub Secrets se PIXABAY_KEY fetch karna
+    api_key = os.environ.get("PIXABAY_KEY")
+    if not api_key:
+        print("Error: PIXABAY_KEY environment variable is not set.")
+        return
+
+    # Pixabay Audio API Endpoint
+    search_url = "https://pixabay.com/api/audio/"
     
-    # Headers to bypass basic restrictions
-    headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36"
+    params = {
+        "key": api_key,
+        "q": "soft piano background music",
+        "per_page": 20 # Kam se kam 20 results mangane ke liye
     }
     
     try:
-        response = requests.get(search_url, headers=headers)
+        response = requests.get(search_url, params=params)
         response.raise_for_status()
+        data = response.json()
     except Exception as e:
-        print(f"Failed to fetch Pixabay page: {e}")
+        print(f"Failed to fetch from Pixabay API: {e}")
         return
 
-    # Page source se mp3 links extract karna
-    mp3_links = re.findall(r'(https?://cdn\.pixabay\.com/audio/[^"\']+\.mp3)', response.text)
-    
-    # Duplicate links ko hatana
-    unique_links = list(dict.fromkeys(mp3_links))
-    print(f"Found {len(unique_links)} tracks.")
+    hits = data.get("hits", [])
+    print(f"Found {len(hits)} tracks from API.")
     
     downloaded_count = 0
     target_count = 20
     
-    for link in unique_links:
+    for hit in hits:
         if downloaded_count >= target_count:
             break
+            
+        # API response mein audio url find karna
+        audio_url = hit.get("preview_url") or hit.get("url") or hit.get("download_url")
+        if not audio_url:
+            continue
             
         # File name format: bg-music.1.mp3, bg-music.2.mp3...
         file_name = f"bg-music.{downloaded_count + 1}.mp3"
@@ -51,16 +59,15 @@ def download_pixabay_music():
             
         print(f"Downloading {file_name}...")
         try:
-            audio_req = requests.get(link, headers=headers)
+            audio_req = requests.get(audio_url)
             if audio_req.status_code == 200:
                 with open(file_path, 'wb') as f:
                     f.write(audio_req.content)
                 print(f"Success: {file_name}")
                 downloaded_count += 1
-                # Block hone se bachne ke liye 2 second ka delay
-                time.sleep(2)
+                time.sleep(1) # API rate limit se bachne ke liye chhota delay
         except Exception as e:
-            print(f"Error downloading {link}: {e}")
+            print(f"Error downloading {audio_url}: {e}")
 
 if __name__ == "__main__":
     download_pixabay_music()
