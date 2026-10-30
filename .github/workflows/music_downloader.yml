@@ -1,0 +1,44 @@
+name: Background Music Downloader
+
+on:
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+  schedule:
+    - cron: '0 0 * * 0' # Runs automatically once a week (optional)
+
+permissions:
+  contents: write
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          pip install requests
+
+      - name: Run Music Downloader Script
+        run: |
+          python "Music Downloader/download_music.py"
+
+      - name: Commit and Push Changes
+        run: |
+          git config --global user.name "Pushpendra Kumar Singh"
+          git config --global user.email "pushpendrakumarsingh4177@gmail.com"
+          git add "Intresting Fact/music/"
+          
+          # Only commit if there are new files
+          if git diff --staged --quiet; then
+            echo "No new music downloaded."
+          else
+            git commit -m "chore: auto-downloaded new soft piano background music"
+            git push
+          fi
