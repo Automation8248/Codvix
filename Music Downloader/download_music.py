@@ -8,8 +8,10 @@ TARGET_DIR = "Intresting Fact/music"
 os.makedirs(TARGET_DIR, exist_ok=True)
 
 def download_pixabay_music():
-    print("Fetching soft piano music from Pixabay...")
-    search_url = "https://pixabay.com/audio/search/soft%20piano/?order=None"
+    print("Fetching soft piano background music from Pixabay...")
+    
+    # Naya search link jo aapne diya hai
+    search_url = "https://pixabay.com/music/search/soft%20piano%20background%20music/?manual_search=20"
     
     # Headers to bypass basic restrictions
     headers = {
