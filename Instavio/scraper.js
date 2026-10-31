@@ -16,6 +16,7 @@ if (!SESSION_ID) {
     process.exit(1);
 }
 
+// 👉 Delays for Human Logic
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const randomSleep = (min, max) => sleep(Math.floor(Math.random() * (max - min + 1) + min));
 
@@ -35,50 +36,72 @@ async function sendTelegramAlert(errorMessage) {
     }
 }
 
-// 👉 MULTIPLE POP-UP PROTECTION (Loops + Broad Keywords + CSS Remove)
+// 👉 HUMAN LOGIC: ADVANCED MULTIPLE POP-UP HANDLER
 async function smartPopupHandler(page) {
-    // Phase 1: Try clicking natural buttons multiple times in case of stacked popups
-    for (let i = 0; i < 3; i++) {
+    let popupHandled = false;
+
+    // Phase 1: Try clicking natural buttons (Aapka diya hua logic + 5s Delay)
+    for (let i = 0; i < 2; i++) { // Loop in case of double popups
         try {
             const popupSelectors = [
-                'button:has-text("Not Now")', 'button:has-text("Not now")', 
-                'button:has-text("Cancel")', 'button:has-text("Dismiss")', 
-                'button:has-text("Later")', 'button:has-text("No Thanks")',
-                'button:has-text("No thanks")', 'button:has-text("Skip")',
-                'button:has-text("Ignore")', 'button:has-text("Decline")'
+                'button:has-text("Not Now")', 
+                'button:has-text("Not now")', 
+                'button:has-text("Cancel")',
+                'button:has-text("Dismiss")',
+                'button:has-text("Later")'
             ].join(', ');
 
             const popupBtn = page.locator(popupSelectors).first();
-            if (await popupBtn.isVisible({ timeout: 1500 })) {
-                console.log("🔔 Pop-up button detected! Clicking to dismiss...");
-                await popupBtn.click({ force: true });
-                await randomSleep(1500, 2500);
-            } else {
-                break; // Agar aur koi button nahi hai toh loop tod do
-            }
+            
+            // Wait for 3.5 seconds to see if popup appears
+            await popupBtn.waitFor({ state: 'visible', timeout: 3500 });
+            
+            console.log("🔔 Pop-up detected! Automatically clicking to dismiss...");
+            await popupBtn.click({ force: true });
+            popupHandled = true;
+
+            // 5 second delay after clicking as requested
+            console.log("⏳ Human Logic: Click ke baad 5 seconds wait kar raha hoon...");
+            await randomSleep(4500, 5500); 
+
         } catch (error) {
-            break;
+            break; // Agar 3.5s mein koi button nahi dikha, toh loop tod do
         }
     }
 
-    // Phase 2: CSS DOM Annihilator (Agar button nahi tha ya overlay bach gaya)
+    // Phase 2: CSS DOM Annihilator (Agar button na ho aur koi hidden overlay bach gaya ho)
     try {
-        await page.evaluate(() => {
-            const popupSelectors = [
+        const removedCount = await page.evaluate(() => {
+            const cssSelectors = [
                 '[class*="rnep"]', '[id*="rnep"]', 
                 '[role="dialog"]', '[role="presentation"]', 
                 '.x1qjc9v5.x9f619.x78zum5.xdt5ytf.x1iyjqo2.xl56j7k', 
                 'div[data-visualcompletion="ignore"]'
             ];
-            
-            document.querySelectorAll(popupSelectors.join(', ')).forEach(element => {
-                if (element && element.id !== 'mount_0_0_0') element.remove();
+            let count = 0;
+            document.querySelectorAll(cssSelectors.join(', ')).forEach(element => {
+                if (element && element.id !== 'mount_0_0_0') {
+                    element.remove();
+                    count++;
+                }
             });
 
             document.body.style.setProperty('overflow', 'auto', 'important');
             document.documentElement.style.setProperty('overflow', 'auto', 'important');
+            return count;
         });
+
+        if (removedCount > 0) {
+            popupHandled = true;
+            console.log("🧹 Hidden pop-up/overlay ko safely delete kar diya gaya.");
+        }
     } catch (error) {}
+
+    // Pop-up band hone ke baad 7 second ka aaram (As requested)
+    if (popupHandled) {
+        console.log("⏳ Human Logic: Pop-up poori tarah hatne ke baad 7 seconds aaram kar raha hoon...");
+        await randomSleep(6500, 7500);
+    }
 }
 
 async function startScraping() {
@@ -178,31 +201,36 @@ async function startScraping() {
 
             console.log(`🌐 Going to Home page to start Search...`);
             await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
-            await randomSleep(3000, 5000); 
+            await randomSleep(4000, 6000); // Thoda extra natural wait
+            
+            console.log("🛡️ Checking for pop-ups on Home Page...");
             await smartPopupHandler(page);
 
             console.log("🔎 Clicking on Search Icon...");
             const searchIcon = page.locator('svg[aria-label="Search"], span:has-text("Search")').last();
             await searchIcon.click({ force: true });
-            await randomSleep(2000, 3000);
-            await smartPopupHandler(page); 
+            await randomSleep(2500, 3500); // Slow human click delay
 
             const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
             await searchInput.waitFor({ state: 'visible', timeout: 15000 });
             await searchInput.fill(''); 
             
             console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
+            // Slower typing to look like a human
             await searchInput.pressSequentially(selectedUsername, { 
-                delay: Math.floor(Math.random() * 150) + 150 
+                delay: Math.floor(Math.random() * 200) + 200 
             });
-            await randomSleep(3500, 5000);
+            await randomSleep(4500, 6500); // Wait for search results to load fully
 
             console.log("🖱️ Clicking on User Profile from Search Results...");
             const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).first();
             await userProfileLink.click({ force: true });
+            
+            console.log("⏳ Waiting for profile to load completely...");
             await page.waitForLoadState('networkidle');
-            await randomSleep(3000, 5000);
+            await randomSleep(4000, 6000);
 
+            console.log("🛡️ Checking for pop-ups before scrolling...");
             await smartPopupHandler(page);
 
             console.log("📜 Starting Live Fast Scrolling & Extraction...");
@@ -219,12 +247,12 @@ async function startScraping() {
                     const showMoreBtn = page.locator(':text-matches("Show more posts", "i")').first();
                     if (await showMoreBtn.isVisible({ timeout: 1000 })) {
                         await showMoreBtn.click({ force: true });
-                        await randomSleep(1500, 2500); 
+                        await randomSleep(2000, 3000); 
                     }
                 } catch (e) {}
 
                 await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
-                await randomSleep(2000, 3500); 
+                await randomSleep(2500, 4500); 
                 currentHeight = await page.evaluate(() => document.body.scrollHeight);
 
                 const links = await page.$$eval('a', anchors => {
@@ -246,7 +274,6 @@ async function startScraping() {
                     }
                 }
                 console.log(`🔗 Copied so far: ${newlyCopiedThisSession}`);
-                await smartPopupHandler(page);
             }
             
             console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
@@ -256,34 +283,37 @@ async function startScraping() {
             if (i < eligibleUsers.length - 1) {
                 console.log(`🏠 Going to Home page and Refreshing for next user loop...`);
                 await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-                await randomSleep(2000, 3000);
+                await randomSleep(2500, 3500);
                 await page.reload({ waitUntil: 'domcontentloaded' });
-                await randomSleep(3000, 5000);
+                await randomSleep(4000, 6000);
                 await smartPopupHandler(page);
             }
         }
         
+        // ==========================================
+        // 🎬 POST SCRAPING ACTIVITIES (Reels)
+        // ==========================================
+        
         console.log(`\n🏠 All targets done! Going to Home Feed and Refreshing...`);
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-        await randomSleep(2000, 3000);
+        await randomSleep(2500, 3500);
         await page.reload({ waitUntil: 'domcontentloaded' }); 
-        await randomSleep(3000, 5000);
+        await randomSleep(4000, 6000);
         await smartPopupHandler(page);
 
         console.log(`📱 Navigating to Reels section...`);
         await page.goto('https://www.instagram.com/reels/', { waitUntil: 'domcontentloaded' });
-        await randomSleep(2000, 4000);
+        await randomSleep(3000, 5000);
         await smartPopupHandler(page);
 
         const reelsToWatch = Math.floor(Math.random() * (7 - 5 + 1)) + 5;
         console.log(`🍿 Watching ${reelsToWatch} Reels randomly...`);
 
         for (let r = 1; r <= reelsToWatch; r++) {
-            const watchTime = Math.floor(Math.random() * (8000 - 4000 + 1) + 4000);
+            const watchTime = Math.floor(Math.random() * (8000 - 4500 + 1) + 4500);
             console.log(`👁️ Watching reel ${r}/${reelsToWatch} for ${(watchTime/1000).toFixed(1)} seconds...`);
             await sleep(watchTime);
             await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-            await smartPopupHandler(page);
         }
         console.log("✅ Reels watching complete.");
 
