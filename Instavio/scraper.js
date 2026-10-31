@@ -154,10 +154,31 @@ async function startScraping() {
             if (!fs.existsSync(videoTxtPath)) fs.writeFileSync(videoTxtPath, '');
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
-            const profileUrl = `https://www.instagram.com/${selectedUsername}/`;
-            console.log(`🌐 Going directly to profile: ${profileUrl}`);
-            await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            // 👉 NAYA LOGIC: Home Page se Search Bar use karna
+            console.log(`🌐 Going to Home page to start Search...`);
+            await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
             await randomSleep(3000, 5000); 
+            await destroyAllPopups(page);
+
+            console.log("🔎 Clicking on Search Icon...");
+            await page.locator('svg[aria-label="Search"]').last().click({ force: true });
+            await randomSleep(1500, 2500);
+            await destroyAllPopups(page);
+
+            const searchInput = page.getByPlaceholder('Search');
+            await searchInput.fill(''); // Clear previous search
+            
+            console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
+            await searchInput.pressSequentially(selectedUsername, { 
+                delay: Math.floor(Math.random() * 150) + 150 
+            });
+            await randomSleep(3500, 5000);
+
+            console.log("🖱️ Clicking on User Profile from Search Results...");
+            const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).first();
+            await userProfileLink.click({ force: true });
+            await page.waitForLoadState('networkidle');
+            await randomSleep(3000, 5000);
 
             await destroyAllPopups(page);
 
@@ -209,10 +230,14 @@ async function startScraping() {
             trackData[selectedUsername] = { last_processed: new Date().toISOString() };
             fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
             
+            // 👉 NAYA LOGIC: Ek user khatam hone par Home page Refresh karna
             if (i < eligibleUsers.length - 1) {
-                const interUserDelay = Math.floor(Math.random() * (8000 - 4000 + 1) + 4000); 
-                console.log(`⏳ Switching to next profile in ${(interUserDelay/1000).toFixed(1)} seconds...`);
-                await sleep(interUserDelay);
+                console.log(`🏠 Going to Home page and Refreshing for next user loop...`);
+                await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+                await randomSleep(2000, 3000);
+                await page.reload({ waitUntil: 'domcontentloaded' });
+                await randomSleep(3000, 5000);
+                await destroyAllPopups(page);
             }
         }
 
@@ -223,7 +248,7 @@ async function startScraping() {
         console.log(`\n🏠 All targets done! Going to Home Feed and Refreshing...`);
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
         await randomSleep(2000, 3000);
-        await page.reload({ waitUntil: 'domcontentloaded' }); // Refresh Home Page
+        await page.reload({ waitUntil: 'domcontentloaded' }); 
         await randomSleep(3000, 5000);
         await destroyAllPopups(page);
 
@@ -241,11 +266,11 @@ async function startScraping() {
             console.log(`👁️ Watching reel ${r}/${reelsToWatch} for ${(watchTime/1000).toFixed(1)} seconds...`);
             await sleep(watchTime);
             await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+            await destroyAllPopups(page);
         }
         console.log("✅ Reels watching complete.");
 
-        // Logout logic yahan se hata diya gaya hai. Session ab safe rahega.
-        console.log("✅ Automation finished successfully. Closing browser.");
+        console.log("✅ Automation finished successfully. Closing browser. (Session ID is SAFE)");
 
         await context.close(); 
         await browser.close();
