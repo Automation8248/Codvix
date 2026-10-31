@@ -36,7 +36,7 @@ async function sendTelegramAlert(errorMessage) {
     }
 }
 
-// 👉 Safe Navigation Function (Auto-Retry for ERR_CONNECTION_CLOSED)
+// 👉 Safe Navigation Function 
 async function safeGoto(page, url, retries = 3) {
     for (let i = 0; i < retries; i++) {
         try {
@@ -56,7 +56,7 @@ async function smartPopupHandler(page) {
     let isPopupHandled = false;
 
     // Phase 1: Native Click
-    for (let i = 0; i < 13; i++) {
+    for (let i = 0; i < 3; i++) {
         try {
             const popupSelectors = [
                 'button:has-text("Not Now")', 'button:has-text("Not now")', 
@@ -225,69 +225,62 @@ async function startScraping() {
 
             const videoTxtPath = path.join(userFolder, 'video.txt');
             if (!fs.existsSync(videoTxtPath)) fs.writeFileSync(videoTxtPath, '');
-            // oldSavedVideos ka set duplicate rokne me madad karega
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
-            console.log("🔎 Clicking on Search Icon...");
-            try {
-                const searchIcon = page.locator('svg[aria-label="Search"], span:has-text("Search")').filter({ state: 'visible' }).first();
-                await searchIcon.click({ force: true, timeout: 5000 });
-            } catch (err) {
-                console.log("⚠️ Normal Search click timeout. Forcing JS DOM Click...");
-                await page.evaluate(() => {
-                    const searchSvg = document.querySelector('svg[aria-label="Search"]');
-                    if (searchSvg) {
-                        let clickable = searchSvg.closest('a') || searchSvg.closest('div[role="link"]') || searchSvg.closest('div[role="button"]') || searchSvg.parentElement;
-                        if(clickable) clickable.click();
-                    }
-                });
-            }
-            
-            await randomSleep(2500, 4000);
-            await smartPopupHandler(page); 
+            // 👉 NAYA LOGIC: SMART HUMAN SEARCH RETRY
+            let searchSuccess = false;
+            for (let attempts = 0; attempts < 3; attempts++) {
+                try {
+                    console.log(`🔎 Clicking on Search Icon (Attempt ${attempts + 1})...`);
+                    const searchIcon = page.locator('svg[aria-label="Search"], span:has-text("Search")').filter({ state: 'visible' }).first();
+                    await searchIcon.click({ force: true, timeout: 6000 });
+                    await randomSleep(2000, 3000);
+                    await smartPopupHandler(page); 
 
-            try {
-                const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').filter({ state: 'visible' }).first();
-                await searchInput.waitFor({ state: 'visible', timeout: 8000 });
-                await searchInput.fill(''); 
-                
-                console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
-                await searchInput.pressSequentially(selectedUsername, { delay: Math.floor(Math.random() * 150) + 150 });
-            } catch (err) {
-                console.log("⚠️ Input field Playwright timeout. Forcing JS DOM Value Injection...");
-                await page.evaluate((uname) => {
-                    let inp = document.querySelector('input[placeholder*="Search"]') || document.querySelector('input[placeholder*="search"]');
-                    if (inp) {
-                        inp.value = '';
-                        inp.focus();
-                        document.execCommand('insertText', false, uname);
-                        inp.dispatchEvent(new Event('input', { bubbles: true }));
-                    }
-                }, selectedUsername);
-            }
-            
-            await randomSleep(4500, 6500); 
+                    const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').filter({ state: 'visible' }).first();
+                    await searchInput.waitFor({ state: 'visible', timeout: 6000 });
+                    await searchInput.fill(''); 
+                    
+                    console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
+                    await searchInput.pressSequentially(selectedUsername, { delay: Math.floor(Math.random() * 150) + 150 });
+                    await randomSleep(4500, 6500); 
 
+                    searchSuccess = true;
+                    break; // Search successful, break the retry loop
+                } catch (err) {
+                    console.log(`⚠️ Search Box open/type fail hua. Page refresh karke dobara try kar raha hoon...`);
+                    await page.reload({ waitUntil: 'domcontentloaded' });
+                    await randomSleep(4000, 6000);
+                    await smartPopupHandler(page);
+                }
+            }
+
+            if (!searchSuccess) {
+                console.log(`❌ 3 baar try karne par bhi Search bar theek se kaam nahi kiya. Is user ko skip kar raha hoon.`);
+                continue; // Skip to next user
+            }
+
+            // 👉 SAFELY CLICK PROFILE
             console.log("🖱️ Clicking on User Profile from Search Results...");
+            let profileClicked = false;
             try {
                 const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).filter({ state: 'visible' }).first();
-                await userProfileLink.click({ force: true, timeout: 5000 });
+                await userProfileLink.click({ force: true, timeout: 8000 });
+                await page.waitForLoadState('networkidle');
+                await randomSleep(3400, 5200);
+                profileClicked = true;
             } catch (err) {
-                 console.log("⚠️ Profile Link click timeout. Forcing JS DOM Click...");
-                 await page.evaluate((uname) => {
-                    const links = Array.from(document.querySelectorAll('a'));
-                    const targetLink = links.find(a => a.href.includes(`/${uname}/`));
-                    if(targetLink) targetLink.click();
-                }, selectedUsername);
+                console.log("⚠️ Search result mein us naam ki profile nahi mili ya click fail hua.");
             }
-            
-            console.log("⏳ Waiting for profile load...");
-            await page.waitForLoadState('networkidle');
-            await randomSleep(3400, 5200);
+
+            if (!profileClicked) {
+                console.log(`⏭️ User ${selectedUsername} ki profile tak nahi pahunch paya. Skipping...`);
+                continue;
+            }
 
             await smartPopupHandler(page);
 
-            // 👉 NAYA LOGIC: EMPTY PROFILE CHECKER
+            // 👉 EMPTY PROFILE CHECKER
             console.log("🕵️ Checking if this user has any posts or reels...");
             const initialLinks = await page.$$eval('a', anchors => {
                 return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
@@ -298,7 +291,6 @@ async function startScraping() {
                 console.log(`⏳ Waiting for 5 seconds on this page before skipping...`);
                 await sleep(5000);
                 
-                // Track update kardo taaki bar-bar time waste na ho
                 trackData[selectedUsername] = { last_processed: new Date().toISOString() };
                 fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
                 
@@ -307,9 +299,8 @@ async function startScraping() {
                     await safeGoto(page, 'https://www.instagram.com/');
                     await randomSleep(2000, 4000);
                 }
-                continue; // Yahan se seedha agle user par chala jayega, niche ka loop nahi chalega
+                continue; 
             }
-            // -------------------------------------------
 
             console.log("📜 Starting Live Fast Scrolling & Extraction...");
             let previousHeight = 0;
@@ -330,7 +321,6 @@ async function startScraping() {
                 } catch (e) {}
 
                 await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
-                // Jaldi extraction ke liye slightly faster human scroll (2-3.5 seconds delay)
                 await randomSleep(2000, 3500); 
                 currentHeight = await page.evaluate(() => document.body.scrollHeight);
 
@@ -345,10 +335,8 @@ async function startScraping() {
                         break;
                     }
 
-                    // 👉 FAST LIVE SAVING & ANTI-DUPLICATE
                     if (!tempCopied.has(link)) {
                         tempCopied.add(link);
-                        // Yeh file mein turant save karega. Script crash hone par bhi data bach jayega.
                         fs.appendFileSync(videoTxtPath, `${link}\n`); 
                         oldSavedVideos.add(link);
                         newlyCopiedThisSession++;
