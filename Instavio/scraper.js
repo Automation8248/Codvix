@@ -35,8 +35,33 @@ async function sendTelegramAlert(errorMessage) {
     }
 }
 
-// 👉 Ultimate DOM Pop-up Annihilator
-async function destroyAllPopups(page) {
+// 👉 MULTIPLE POP-UP PROTECTION (Loops + Broad Keywords + CSS Remove)
+async function smartPopupHandler(page) {
+    // Phase 1: Try clicking natural buttons multiple times in case of stacked popups
+    for (let i = 0; i < 3; i++) {
+        try {
+            const popupSelectors = [
+                'button:has-text("Not Now")', 'button:has-text("Not now")', 
+                'button:has-text("Cancel")', 'button:has-text("Dismiss")', 
+                'button:has-text("Later")', 'button:has-text("No Thanks")',
+                'button:has-text("No thanks")', 'button:has-text("Skip")',
+                'button:has-text("Ignore")', 'button:has-text("Decline")'
+            ].join(', ');
+
+            const popupBtn = page.locator(popupSelectors).first();
+            if (await popupBtn.isVisible({ timeout: 1500 })) {
+                console.log("🔔 Pop-up button detected! Clicking to dismiss...");
+                await popupBtn.click({ force: true });
+                await randomSleep(1500, 2500);
+            } else {
+                break; // Agar aur koi button nahi hai toh loop tod do
+            }
+        } catch (error) {
+            break;
+        }
+    }
+
+    // Phase 2: CSS DOM Annihilator (Agar button nahi tha ya overlay bach gaya)
     try {
         await page.evaluate(() => {
             const popupSelectors = [
@@ -53,7 +78,6 @@ async function destroyAllPopups(page) {
             document.body.style.setProperty('overflow', 'auto', 'important');
             document.documentElement.style.setProperty('overflow', 'auto', 'important');
         });
-        await randomSleep(500, 1500); 
     } catch (error) {}
 }
 
@@ -102,7 +126,6 @@ async function startScraping() {
             args: ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
         });
 
-        // 👉 Dynamic Context Manager (Record ON/OFF handle karne ke liye)
         let context = null;
         let page = null;
         let currentlyRecording = null;
@@ -136,7 +159,6 @@ async function startScraping() {
             currentlyRecording = needRecording;
         }
 
-        // 👉 Scraping Loop
         for (let i = 0; i < eligibleUsers.length; i++) {
             const selectedUsername = eligibleUsers[i];
             
@@ -154,19 +176,20 @@ async function startScraping() {
             if (!fs.existsSync(videoTxtPath)) fs.writeFileSync(videoTxtPath, '');
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
-            // 👉 NAYA LOGIC: Home Page se Search Bar use karna
             console.log(`🌐 Going to Home page to start Search...`);
             await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
             await randomSleep(3000, 5000); 
-            await destroyAllPopups(page);
+            await smartPopupHandler(page);
 
             console.log("🔎 Clicking on Search Icon...");
-            await page.locator('svg[aria-label="Search"]').last().click({ force: true });
-            await randomSleep(1500, 2500);
-            await destroyAllPopups(page);
+            const searchIcon = page.locator('svg[aria-label="Search"], span:has-text("Search")').last();
+            await searchIcon.click({ force: true });
+            await randomSleep(2000, 3000);
+            await smartPopupHandler(page); 
 
-            const searchInput = page.getByPlaceholder('Search');
-            await searchInput.fill(''); // Clear previous search
+            const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
+            await searchInput.waitFor({ state: 'visible', timeout: 15000 });
+            await searchInput.fill(''); 
             
             console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
             await searchInput.pressSequentially(selectedUsername, { 
@@ -180,7 +203,7 @@ async function startScraping() {
             await page.waitForLoadState('networkidle');
             await randomSleep(3000, 5000);
 
-            await destroyAllPopups(page);
+            await smartPopupHandler(page);
 
             console.log("📜 Starting Live Fast Scrolling & Extraction...");
             let previousHeight = 0;
@@ -223,41 +246,35 @@ async function startScraping() {
                     }
                 }
                 console.log(`🔗 Copied so far: ${newlyCopiedThisSession}`);
-                await destroyAllPopups(page);
+                await smartPopupHandler(page);
             }
             
             console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
             trackData[selectedUsername] = { last_processed: new Date().toISOString() };
             fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
             
-            // 👉 NAYA LOGIC: Ek user khatam hone par Home page Refresh karna
             if (i < eligibleUsers.length - 1) {
                 console.log(`🏠 Going to Home page and Refreshing for next user loop...`);
                 await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
                 await randomSleep(2000, 3000);
                 await page.reload({ waitUntil: 'domcontentloaded' });
                 await randomSleep(3000, 5000);
-                await destroyAllPopups(page);
+                await smartPopupHandler(page);
             }
         }
-
-        // ==========================================
-        // 🎬 POST SCRAPING ACTIVITIES (Last user context = Recording ON)
-        // ==========================================
         
         console.log(`\n🏠 All targets done! Going to Home Feed and Refreshing...`);
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
         await randomSleep(2000, 3000);
         await page.reload({ waitUntil: 'domcontentloaded' }); 
         await randomSleep(3000, 5000);
-        await destroyAllPopups(page);
+        await smartPopupHandler(page);
 
         console.log(`📱 Navigating to Reels section...`);
         await page.goto('https://www.instagram.com/reels/', { waitUntil: 'domcontentloaded' });
         await randomSleep(2000, 4000);
-        await destroyAllPopups(page);
+        await smartPopupHandler(page);
 
-        // 👉 Watch 5 to 7 Reels
         const reelsToWatch = Math.floor(Math.random() * (7 - 5 + 1)) + 5;
         console.log(`🍿 Watching ${reelsToWatch} Reels randomly...`);
 
@@ -266,7 +283,7 @@ async function startScraping() {
             console.log(`👁️ Watching reel ${r}/${reelsToWatch} for ${(watchTime/1000).toFixed(1)} seconds...`);
             await sleep(watchTime);
             await page.evaluate(() => window.scrollBy(0, window.innerHeight));
-            await destroyAllPopups(page);
+            await smartPopupHandler(page);
         }
         console.log("✅ Reels watching complete.");
 
