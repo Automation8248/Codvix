@@ -1,7 +1,7 @@
 name: Instavio Anti-Detect Scraper
 
 on:
-  workflow_dispatch: # Sirf manual button ("Run workflow") se chalega
+  workflow_dispatch: 
 
 permissions:
   contents: write
@@ -9,7 +9,7 @@ permissions:
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
-    timeout-minutes: 90 # Reels dekhne aur long process ke liye time limit badhai gayi hai
+    timeout-minutes: 90
 
     steps:
       - name: 📥 Checkout Repository
@@ -29,7 +29,7 @@ jobs:
       - name: 🚀 Run Stealth Scraper
         working-directory: ./Instavio
         env:
-          # GitHub Secrets se variables fetch karna
+          RECORD_VIDEO: ${{ github.event_name == 'workflow_dispatch' }}
           IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
           TELEGRAM_FAIL_TOKEN: ${{ secrets.TELEGRAM_FAIL_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
@@ -37,11 +37,11 @@ jobs:
 
       - name: 🎥 Upload Screen Recording (Artifact)
         uses: actions/upload-artifact@v4
-        # always() isliye taaki agar code error de, tab bhi record hui video upload ho jaye
         if: always() 
         with:
           name: instavio-screen-recordings
-          path: Instavio/Recordings/**/*.webm
+          # 👉 FIX: Path ko simple kar diya gaya hai
+          path: Instavio/Recordings/
           retention-days: 5 
 
       - name: 💾 Save Track data & Video links to GitHub
@@ -49,13 +49,7 @@ jobs:
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          
-          # Naye URLs aur user memory ko update karega
           git add Instavio/*/video.txt Instavio/track.json || true
           git commit -m "Auto-update tracked users and video URLs" || echo "No new data to commit"
-          
-          # Push karne se pehle GitHub se latest changes merge karega taaki rejection error na aaye
           git pull --rebase origin main
-          
-          # Final push to repository
           git push
