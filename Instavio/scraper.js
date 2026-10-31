@@ -13,7 +13,8 @@ const TG_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 if (!SESSION_ID || SESSION_ID === 'AAPKA_SESSION_ID_YAHAN_DALEIN') {
     console.error("❌ ERROR: IG_SESSION_ID valid secret nahi mila!");
-    process.exit(1);
+    process.exitCode = 1;
+    return;
 }
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
@@ -35,12 +36,27 @@ async function sendTelegramAlert(errorMessage) {
     }
 }
 
-// 👉 Advanced Pop-up Handler (With Human Logic: 5s + 7s Delay)
+// 👉 Safe Navigation Function (Auto-Retry for ERR_CONNECTION_CLOSED)
+async function safeGoto(page, url, retries = 3) {
+    for (let i = 0; i < retries; i++) {
+        try {
+            await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45000 });
+            return true; 
+        } catch (error) {
+            console.log(`⚠️ Network Error: ${error.message}`);
+            console.log(`🔄 Retry ${i + 1} of ${retries} in 5 seconds...`);
+            await sleep(5000);
+        }
+    }
+    throw new Error(`Failed to load ${url} after ${retries} retries due to Instagram connection drop.`);
+}
+
+// 👉 Advanced Pop-up Handler
 async function smartPopupHandler(page) {
     let isPopupHandled = false;
 
-    // Phase 1: Try clicking natural buttons multiple times in case of stacked popups
-    for (let i = 0; i < 3; i++) {
+    // Phase 1: Native Click
+    for (let i = 0; i < 13; i++) {
         try {
             const popupSelectors = [
                 'button:has-text("Not Now")', 'button:has-text("Not now")', 
@@ -60,14 +76,14 @@ async function smartPopupHandler(page) {
                 console.log("⏳ Human Logic: Click karne ke baad 5 seconds wait kar raha hoon...");
                 await randomSleep(4500, 5500);
             } else {
-                break; // Agar aur koi button nahi hai toh loop tod do
+                break; 
             }
         } catch (error) {
             break;
         }
     }
 
-    // Phase 2: CSS DOM Annihilator
+    // Phase 2: CSS Cleaner
     try {
         const removedOverlay = await page.evaluate(() => {
             const cssSelectors = [
@@ -101,6 +117,12 @@ async function smartPopupHandler(page) {
 }
 
 async function startScraping() {
+    let browser = null;
+    let context = null;
+    let page = null;
+    let currentlyRecording = null;
+    const isManualRun = process.env.RECORD_VIDEO === 'true';
+
     const instavioDir = __dirname;
     const usernamesFile = path.join(instavioDir, 'usernames.txt');
     const trackFile = path.join(instavioDir, 'track.json');
@@ -140,24 +162,17 @@ async function startScraping() {
         
         console.log(`🎯 Targets for Today: ${eligibleUsers.length}`);
 
-        const browser = await chromium.launch({
+        browser = await chromium.launch({
             headless: true, 
             args: ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
         });
-
-        const isManualRun = process.env.RECORD_VIDEO === 'true'; 
-
-        // 👉 Dynamic Context Manager for Partial Recording
-        let context = null;
-        let page = null;
-        let currentlyRecording = null;
 
         async function switchContext(needRecording) {
             if (currentlyRecording === needRecording && context !== null) return;
             
             if (context) {
                 console.log(`🔄 Switching Browser Context for Recording State...`);
-                await context.close(); // Video save process trigger hota hai
+                await context.close(); 
             }
             
             const contextOptions = {
@@ -181,25 +196,23 @@ async function startScraping() {
             currentlyRecording = needRecording;
         }
 
-        // Initialize First Context
         await switchContext(eligibleUsers.length > 0); 
         
         console.log(`🌐 Going to Home page initially...`);
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 45000 });
+        await safeGoto(page, 'https://www.instagram.com/');
         await randomSleep(4000, 6000); 
         await smartPopupHandler(page);
 
-        // 👉 Scraping Loop (Continuous Search)
+        // 👉 Scraping Loop
         for (let i = 0; i < eligibleUsers.length; i++) {
             const selectedUsername = eligibleUsers[i];
             
-            // Record First 2 or Last 1
             const shouldRecord = (i === 0 || i === 1 || i === eligibleUsers.length - 1);
             await switchContext(shouldRecord);
 
             if (page.url() !== 'https://www.instagram.com/' && !page.url().includes('instagram.com/?')) {
                 console.log(`🌐 Re-routing to Home page to start fresh Search for ${selectedUsername}...`);
-                await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 45000 });
+                await safeGoto(page, 'https://www.instagram.com/');
                 await randomSleep(3000, 5000);
                 await smartPopupHandler(page);
             }
@@ -212,6 +225,7 @@ async function startScraping() {
 
             const videoTxtPath = path.join(userFolder, 'video.txt');
             if (!fs.existsSync(videoTxtPath)) fs.writeFileSync(videoTxtPath, '');
+            // oldSavedVideos ka set duplicate rokne me madad karega
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
             console.log("🔎 Clicking on Search Icon...");
@@ -273,6 +287,30 @@ async function startScraping() {
 
             await smartPopupHandler(page);
 
+            // 👉 NAYA LOGIC: EMPTY PROFILE CHECKER
+            console.log("🕵️ Checking if this user has any posts or reels...");
+            const initialLinks = await page.$$eval('a', anchors => {
+                return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
+            });
+
+            if (initialLinks.length === 0) {
+                console.log(`⚠️ ALERT: Koi post/video nahi mili! Account shayad khali ya private hai.`);
+                console.log(`⏳ Waiting for 5 seconds on this page before skipping...`);
+                await sleep(5000);
+                
+                // Track update kardo taaki bar-bar time waste na ho
+                trackData[selectedUsername] = { last_processed: new Date().toISOString() };
+                fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
+                
+                if (i < eligibleUsers.length - 1) {
+                    console.log(`🌐 Going back to Home page to search next user...`);
+                    await safeGoto(page, 'https://www.instagram.com/');
+                    await randomSleep(2000, 4000);
+                }
+                continue; // Yahan se seedha agle user par chala jayega, niche ka loop nahi chalega
+            }
+            // -------------------------------------------
+
             console.log("📜 Starting Live Fast Scrolling & Extraction...");
             let previousHeight = 0;
             let currentHeight = await page.evaluate(() => document.body.scrollHeight);
@@ -292,7 +330,8 @@ async function startScraping() {
                 } catch (e) {}
 
                 await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
-                await randomSleep(2800, 4800); 
+                // Jaldi extraction ke liye slightly faster human scroll (2-3.5 seconds delay)
+                await randomSleep(2000, 3500); 
                 currentHeight = await page.evaluate(() => document.body.scrollHeight);
 
                 const links = await page.$$eval('a', anchors => {
@@ -306,14 +345,16 @@ async function startScraping() {
                         break;
                     }
 
+                    // 👉 FAST LIVE SAVING & ANTI-DUPLICATE
                     if (!tempCopied.has(link)) {
                         tempCopied.add(link);
+                        // Yeh file mein turant save karega. Script crash hone par bhi data bach jayega.
                         fs.appendFileSync(videoTxtPath, `${link}\n`); 
                         oldSavedVideos.add(link);
                         newlyCopiedThisSession++;
                     }
                 }
-                console.log(`🔗 Scrolled... New added for ${selectedUsername} so far: ${newlyCopiedThisSession}`);
+                console.log(`🔗 Fast Scrolled... Live Saved for ${selectedUsername} so far: ${newlyCopiedThisSession}`);
                 await smartPopupHandler(page); 
             }
             
@@ -327,23 +368,20 @@ async function startScraping() {
                 await sleep(interUserDelay);
                 
                 console.log(`🌐 Going back to Home page for next Search operation...`);
-                await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+                await safeGoto(page, 'https://www.instagram.com/');
                 await randomSleep(2000, 4000);
             }
         }
         
-        // ==========================================
-        // 🎬 POST SCRAPING ACTIVITIES (Reels Watching)
-        // ==========================================
         console.log(`\n🏠 All targets done! Going to Home Feed and Refreshing...`);
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+        await safeGoto(page, 'https://www.instagram.com/');
         await randomSleep(2500, 3500);
         await page.reload({ waitUntil: 'domcontentloaded' }); 
         await randomSleep(4000, 6000);
         await smartPopupHandler(page);
 
         console.log(`📱 Navigating to Reels section...`);
-        await page.goto('https://www.instagram.com/reels/', { waitUntil: 'domcontentloaded' });
+        await safeGoto(page, 'https://www.instagram.com/reels/');
         await randomSleep(3000, 5000);
         await smartPopupHandler(page);
 
@@ -364,10 +402,8 @@ async function startScraping() {
     } catch (error) {
         console.error(`❌ Global Error during automation:`, error.message);
         await sendTelegramAlert(`Automation Crashed!\nReason: ${error.message}`);
-        // 👉 FIX: Error aane par seedha script kill nahi karega, balki aage finally block me jane dega
         process.exitCode = 1; 
     } finally {
-        // 👉 FIX: Chaahe error aaye ya success ho, Browser naturally close hoga, jisse VIDEO HAMESHA SAVE hogi
         if (context) await context.close(); 
         if (browser) await browser.close();
         if (isManualRun) {
