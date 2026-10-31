@@ -11,6 +11,11 @@ const SESSION_ID = process.env.IG_SESSION_ID || 'AAPKA_SESSION_ID_YAHAN_DALEIN';
 const TG_TOKEN = process.env.TELEGRAM_FAIL_TOKEN;
 const TG_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+if (!SESSION_ID || SESSION_ID === 'AAPKA_SESSION_ID_YAHAN_DALEIN') {
+    console.error("❌ ERROR: IG_SESSION_ID valid secret nahi mila!");
+    process.exit(1);
+}
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const randomSleep = (min, max) => sleep(Math.floor(Math.random() * (max - min + 1) + min));
 
@@ -31,31 +36,38 @@ async function sendTelegramAlert(errorMessage) {
 }
 
 // 👉 Advanced Pop-up Handler (With Human Logic: 5s + 7s Delay)
-async function handlePopups(page) {
+async function smartPopupHandler(page) {
     let isPopupHandled = false;
-    try {
-        const popupSelectors = [
-            'button:has-text("Not Now")', 
-            'button:has-text("Not now")', 
-            'button:has-text("Cancel")',
-            'button:has-text("Dismiss")',
-            'button:has-text("Later")'
-        ].join(', ');
 
-        const popupBtn = page.locator(popupSelectors).first();
-        
-        await popupBtn.waitFor({ state: 'visible', timeout: 3500 });
-        console.log("🔔 Pop-up detected! Automatically clicking to dismiss...");
-        await popupBtn.click({ force: true });
-        isPopupHandled = true;
+    // Phase 1: Try clicking natural buttons multiple times in case of stacked popups
+    for (let i = 0; i < 3; i++) {
+        try {
+            const popupSelectors = [
+                'button:has-text("Not Now")', 'button:has-text("Not now")', 
+                'button:has-text("Cancel")', 'button:has-text("Dismiss")', 
+                'button:has-text("Later")', 'button:has-text("No Thanks")',
+                'button:has-text("No thanks")', 'button:has-text("Skip")',
+                'button:has-text("Ignore")', 'button:has-text("Decline")'
+            ].join(', ');
 
-        console.log("⏳ Human Logic: Click karne ke baad 5 seconds wait kar raha hoon...");
-        await randomSleep(4500, 5500); 
-    } catch (error) {
-        // Koi button wala popup nahi aaya
+            const popupBtn = page.locator(popupSelectors).filter({ state: 'visible' }).first();
+            
+            if (await popupBtn.isVisible({ timeout: 2000 })) {
+                console.log("🔔 Pop-up button detected! Clicking to dismiss...");
+                await popupBtn.click({ force: true });
+                isPopupHandled = true;
+                
+                console.log("⏳ Human Logic: Click karne ke baad 5 seconds wait kar raha hoon...");
+                await randomSleep(4500, 5500);
+            } else {
+                break; // Agar aur koi button nahi hai toh loop tod do
+            }
+        } catch (error) {
+            break;
+        }
     }
 
-    // Safety layer: Hidden overlays/popups ko CSS se hatana
+    // Phase 2: CSS DOM Annihilator
     try {
         const removedOverlay = await page.evaluate(() => {
             const cssSelectors = [
@@ -82,7 +94,6 @@ async function handlePopups(page) {
         }
     } catch (e) {}
 
-    // Pop-up handle hone ke baad additional 7 seconds wait
     if (isPopupHandled) {
         console.log("⏳ Pop-up clear ho gaya. Aage badhne se pehle 7 seconds additional wait kar raha hoon...");
         await randomSleep(6500, 7500);
@@ -95,104 +106,104 @@ async function startScraping() {
     const trackFile = path.join(instavioDir, 'track.json');
     const recordingsDir = path.join(instavioDir, 'Recordings'); 
 
-    if (!fs.existsSync(usernamesFile)) {
-        console.log("❌ usernames.txt nahi mili!");
-        return;
-    }
-
-    if (!fs.existsSync(trackFile)) {
-        fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
-    }
-    
+    if (!fs.existsSync(usernamesFile)) return console.log("❌ usernames.txt nahi mili!");
+    if (!fs.existsSync(trackFile)) fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
     if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir, { recursive: true });
 
-    const usernames = fs.readFileSync(usernamesFile, 'utf-8').split('\n').map(u => u.trim()).filter(u => u);
-    
-    // 👉 FIX: JSON ko safe tareeqe se read karna
-    let trackData = {};
-    try {
-        const rawData = fs.readFileSync(trackFile, 'utf-8');
-        if (rawData.trim() !== '') {
-            trackData = JSON.parse(rawData);
-        }
-    } catch (err) {
-        console.log("⚠️ track.json file ka format galat tha ya corrupt thi. Isko auto-fix kar raha hoon...");
-        fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
-        trackData = {};
-    }
-
-    if (usernames.length === 0) {
-        console.log("ℹ️ usernames.txt khali hai.");
-        return;
-    }
-
     let eligibleUsers = [];
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    for (const username of usernames) {
-        if (trackData[username] && trackData[username].last_processed) {
-            const timePassed = now - new Date(trackData[username].last_processed).getTime();
-            if (timePassed < THIRTY_DAYS_MS) {
-                console.log(`⏭️ '${username}' abhi 30-day cooldown me hai. Skipping...`);
-                continue; 
-            }
-        }
-        eligibleUsers.push(username); 
-    }
-
-    if (eligibleUsers.length === 0) {
-        console.log("ℹ️ Aaj ke liye koi user bacha nahi hai. Sab cooldown me hain. Automation band ho raha hai.");
-        return;
-    }
-
-    console.log(`\n======================================`);
-    console.log(`🎯 Total Targets Selected for Today: ${eligibleUsers.length}`);
-    console.log("🚀 Starting Stealth Browser Automation...");
-
-    const browser = await chromium.launch({
-        headless: true, 
-        args: ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
-    });
-
-    // Pehle 2 aur aakhiri 1 record karne ka logic (Using Record Video env)
-    const isManualRun = process.env.RECORD_VIDEO === 'true'; 
-
-    const contextOptions = {
-        viewport: { width: 1280, height: 720 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    };
-
-    if (isManualRun) {
-        console.log("🎥 Screen Recording ON.");
-        contextOptions.recordVideo = { dir: recordingsDir, size: { width: 1280, height: 720 } };
-    } else {
-        console.log("⚡ Auto Run Detected. Screen Recording OFF.");
-    }
-
-    const context = await browser.newContext(contextOptions);
-    
-    await context.addCookies([{
-        name: 'sessionid',
-        value: SESSION_ID,
-        domain: '.instagram.com',
-        path: '/',
-        secure: true,
-        httpOnly: true
-    }]);
-
-    const page = await context.newPage();
-
     try {
-        console.log("🌐 Going to Instagram Home Page (Only Once)...");
+        const usernames = fs.readFileSync(usernamesFile, 'utf-8').split('\n').map(u => u.trim()).filter(u => u);
+        if (usernames.length === 0) return console.log("ℹ️ usernames.txt khali hai.");
+
+        let trackData = {};
+        try {
+            const rawData = fs.readFileSync(trackFile, 'utf-8');
+            if (rawData.trim() !== '') trackData = JSON.parse(rawData);
+        } catch (err) {
+            fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
+        }
+
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
+
+        for (const username of usernames) {
+            if (trackData[username] && trackData[username].last_processed) {
+                const timePassed = now - new Date(trackData[username].last_processed).getTime();
+                if (timePassed < THIRTY_DAYS_MS) continue; 
+            }
+            eligibleUsers.push(username); 
+        }
+
+        if (eligibleUsers.length === 0) {
+            return console.log("ℹ️ Aaj ke liye koi user bacha nahi hai. Sab cooldown me hain.");
+        }
+        
+        console.log(`🎯 Targets for Today: ${eligibleUsers.length}`);
+
+        const browser = await chromium.launch({
+            headless: true, 
+            args: ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+        });
+
+        const isManualRun = process.env.RECORD_VIDEO === 'true'; 
+
+        // 👉 Dynamic Context Manager for Partial Recording
+        let context = null;
+        let page = null;
+        let currentlyRecording = null;
+
+        async function switchContext(needRecording) {
+            if (currentlyRecording === needRecording && context !== null) return;
+            
+            if (context) {
+                console.log(`🔄 Switching Browser Context for Recording State...`);
+                await context.close(); // Video save process trigger hota hai
+            }
+            
+            const contextOptions = {
+                viewport: { width: 1280, height: 720 },
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                locale: 'en-US', timezoneId: 'Asia/Kolkata', colorScheme: 'dark'
+            };
+
+            if (needRecording && isManualRun) {
+                console.log("🎥 Screen Recording is ON for this phase.");
+                contextOptions.recordVideo = { dir: recordingsDir, size: { width: 1280, height: 720 } };
+            } else {
+                console.log("⚡ Screen Recording is OFF for this phase.");
+            }
+
+            context = await browser.newContext(contextOptions);
+            await context.addCookies([{
+                name: 'sessionid', value: SESSION_ID, domain: '.instagram.com', path: '/', secure: true, httpOnly: true
+            }]);
+            page = await context.newPage();
+            currentlyRecording = needRecording;
+        }
+
+        // Initialize First Context
+        await switchContext(eligibleUsers.length > 0); 
+        
+        console.log(`🌐 Going to Home page initially...`);
         await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 45000 });
         await randomSleep(4000, 6000); 
-        await handlePopups(page); 
+        await smartPopupHandler(page);
 
-        // 👉 Loop for all eligible users (Search Bar Continuous Loop)
+        // 👉 Scraping Loop (Continuous Search)
         for (let i = 0; i < eligibleUsers.length; i++) {
             const selectedUsername = eligibleUsers[i];
             
+            // Record First 2 or Last 1
+            const shouldRecord = (i === 0 || i === 1 || i === eligibleUsers.length - 1);
+            await switchContext(shouldRecord);
+
+            if (page.url() !== 'https://www.instagram.com/' && !page.url().includes('instagram.com/?')) {
+                console.log(`🌐 Re-routing to Home page to start fresh Search for ${selectedUsername}...`);
+                await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 45000 });
+                await randomSleep(3000, 5000);
+                await smartPopupHandler(page);
+            }
+
             console.log(`\n======================================`);
             console.log(`🔍 Processing User ${i + 1} of ${eligibleUsers.length}: [${selectedUsername}]`);
 
@@ -204,36 +215,67 @@ async function startScraping() {
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
             console.log("🔎 Clicking on Search Icon...");
-            // Use robust search icon locator
-            const searchIcon = page.locator('svg[aria-label="Search"], span:has-text("Search")').last();
-            await searchIcon.click({ force: true });
-            await randomSleep(2000, 3500);
-
-            await handlePopups(page);
-
-            // Wait for search input to appear properly
-            const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').first();
-            await searchInput.waitFor({ state: 'visible', timeout: 10000 }).catch(() => console.log("⏳ Search box wait..."));
-            await searchInput.fill(''); // Clear previous search
+            try {
+                const searchIcon = page.locator('svg[aria-label="Search"], span:has-text("Search")').filter({ state: 'visible' }).first();
+                await searchIcon.click({ force: true, timeout: 5000 });
+            } catch (err) {
+                console.log("⚠️ Normal Search click timeout. Forcing JS DOM Click...");
+                await page.evaluate(() => {
+                    const searchSvg = document.querySelector('svg[aria-label="Search"]');
+                    if (searchSvg) {
+                        let clickable = searchSvg.closest('a') || searchSvg.closest('div[role="link"]') || searchSvg.closest('div[role="button"]') || searchSvg.parentElement;
+                        if(clickable) clickable.click();
+                    }
+                });
+            }
             
-            console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
-            await searchInput.pressSequentially(selectedUsername, { 
-                delay: Math.floor(Math.random() * 150) + 150 
-            });
-            await randomSleep(4000, 6000); // Wait for results to load
+            await randomSleep(2500, 4000);
+            await smartPopupHandler(page); 
+
+            try {
+                const searchInput = page.locator('input[placeholder*="Search"], input[placeholder*="search"]').filter({ state: 'visible' }).first();
+                await searchInput.waitFor({ state: 'visible', timeout: 8000 });
+                await searchInput.fill(''); 
+                
+                console.log(`⌨️ Typing username manually: ${selectedUsername}...`);
+                await searchInput.pressSequentially(selectedUsername, { delay: Math.floor(Math.random() * 150) + 150 });
+            } catch (err) {
+                console.log("⚠️ Input field Playwright timeout. Forcing JS DOM Value Injection...");
+                await page.evaluate((uname) => {
+                    let inp = document.querySelector('input[placeholder*="Search"]') || document.querySelector('input[placeholder*="search"]');
+                    if (inp) {
+                        inp.value = '';
+                        inp.focus();
+                        document.execCommand('insertText', false, uname);
+                        inp.dispatchEvent(new Event('input', { bubbles: true }));
+                    }
+                }, selectedUsername);
+            }
+            
+            await randomSleep(4500, 6500); 
 
             console.log("🖱️ Clicking on User Profile from Search Results...");
-            const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).first();
-            await userProfileLink.click({ force: true });
+            try {
+                const userProfileLink = page.locator(`a[href="/${selectedUsername}/"]`).filter({ state: 'visible' }).first();
+                await userProfileLink.click({ force: true, timeout: 5000 });
+            } catch (err) {
+                 console.log("⚠️ Profile Link click timeout. Forcing JS DOM Click...");
+                 await page.evaluate((uname) => {
+                    const links = Array.from(document.querySelectorAll('a'));
+                    const targetLink = links.find(a => a.href.includes(`/${uname}/`));
+                    if(targetLink) targetLink.click();
+                }, selectedUsername);
+            }
+            
+            console.log("⏳ Waiting for profile load...");
             await page.waitForLoadState('networkidle');
             await randomSleep(3400, 5200);
 
-            await handlePopups(page); 
+            await smartPopupHandler(page);
 
             console.log("📜 Starting Live Fast Scrolling & Extraction...");
             let previousHeight = 0;
             let currentHeight = await page.evaluate(() => document.body.scrollHeight);
-            
             let reachedOldVideo = false;
             let newlyCopiedThisSession = 0;
             const tempCopied = new Set(); 
@@ -241,9 +283,8 @@ async function startScraping() {
             while (previousHeight !== currentHeight && !reachedOldVideo) {
                 previousHeight = currentHeight;
                 
-                // Show more posts button logic
                 try {
-                    const showMoreBtn = page.locator(':text-matches("Show more posts", "i")').first();
+                    const showMoreBtn = page.locator(':text-matches("Show more posts", "i")').filter({ state: 'visible' }).first();
                     if (await showMoreBtn.isVisible({ timeout: 1000 })) {
                         await showMoreBtn.click({ force: true });
                         await randomSleep(1500, 2500); 
@@ -267,65 +308,72 @@ async function startScraping() {
 
                     if (!tempCopied.has(link)) {
                         tempCopied.add(link);
-                        fs.appendFileSync(videoTxtPath, `${link}\n`); // Live Save
+                        fs.appendFileSync(videoTxtPath, `${link}\n`); 
                         oldSavedVideos.add(link);
                         newlyCopiedThisSession++;
                     }
                 }
                 console.log(`🔗 Scrolled... New added for ${selectedUsername} so far: ${newlyCopiedThisSession}`);
-                await handlePopups(page); // Extract karte waqt agar popup aaye
+                await smartPopupHandler(page); 
             }
             
             console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
-
-            trackData[selectedUsername] = {
-                last_processed: new Date().toISOString()
-            };
+            trackData[selectedUsername] = { last_processed: new Date().toISOString() };
             fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
             
             if (i < eligibleUsers.length - 1) {
                 const interUserDelay = Math.floor(Math.random() * (10000 - 6000 + 1) + 6000); 
                 console.log(`\n⏳ Switching to next profile search in ${(interUserDelay/1000).toFixed(1)} seconds... (NO Home Refresh)`);
                 await sleep(interUserDelay);
-                // Script seedha wapas upar loop mein jayegi aur current profile se hi naya search karegi
+                
+                console.log(`🌐 Going back to Home page for next Search operation...`);
+                await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+                await randomSleep(2000, 4000);
             }
         }
-
-        // ==========================================
-        // 🎬 LAST MEIN HOME FEED SCROLL KARNA
-        // ==========================================
-        console.log(`\n🏠 All target users processed. Going back to Home feed for final human activity...`);
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-        await handlePopups(page);
-
-        const homeScrollDuration = Math.floor(Math.random() * (35000 - 20000 + 1) + 20000); // 20-35 seconds
-        console.log(`💤 Spending ${(homeScrollDuration/1000).toFixed(1)} seconds randomly scrolling the home feed before closing...`);
         
-        const startTime = Date.now();
-        while (Date.now() - startTime < homeScrollDuration) {
-            await page.evaluate(() => window.scrollBy({ top: Math.random() * 500 + 300, behavior: 'smooth' }));
-            await randomSleep(2000, 4000);
-            
-            if (Math.random() > 0.7) {
-                await page.evaluate(() => window.scrollBy({ top: -(Math.random() * 300 + 100), behavior: 'smooth' }));
-                await randomSleep(1500, 2500);
-            }
+        // ==========================================
+        // 🎬 POST SCRAPING ACTIVITIES (Reels Watching)
+        // ==========================================
+        console.log(`\n🏠 All targets done! Going to Home Feed and Refreshing...`);
+        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+        await randomSleep(2500, 3500);
+        await page.reload({ waitUntil: 'domcontentloaded' }); 
+        await randomSleep(4000, 6000);
+        await smartPopupHandler(page);
+
+        console.log(`📱 Navigating to Reels section...`);
+        await page.goto('https://www.instagram.com/reels/', { waitUntil: 'domcontentloaded' });
+        await randomSleep(3000, 5000);
+        await smartPopupHandler(page);
+
+        const reelsToWatch = Math.floor(Math.random() * (7 - 5 + 1)) + 5;
+        console.log(`🍿 Watching ${reelsToWatch} Reels randomly...`);
+
+        for (let r = 1; r <= reelsToWatch; r++) {
+            const watchTime = Math.floor(Math.random() * (8000 - 4500 + 1) + 4500);
+            console.log(`👁️ Watching reel ${r}/${reelsToWatch} for ${(watchTime/1000).toFixed(1)} seconds...`);
+            await sleep(watchTime);
+            await page.evaluate(() => window.scrollBy(0, window.innerHeight));
+            await smartPopupHandler(page);
         }
-        console.log("✅ Final home feed scrolling complete. Safe Exit.");
+        console.log("✅ Reels watching complete.");
+
+        console.log("✅ Automation finished successfully. (Session ID is SAFE)");
 
     } catch (error) {
         console.error(`❌ Global Error during automation:`, error.message);
         await sendTelegramAlert(`Automation Crashed!\nReason: ${error.message}`);
-        process.exit(1);
+        // 👉 FIX: Error aane par seedha script kill nahi karega, balki aage finally block me jane dega
+        process.exitCode = 1; 
     } finally {
-        await context.close(); 
+        // 👉 FIX: Chaahe error aaye ya success ho, Browser naturally close hoga, jisse VIDEO HAMESHA SAVE hogi
+        if (context) await context.close(); 
+        if (browser) await browser.close();
         if (isManualRun) {
             console.log(`🎥 Complete Screen Recording saved in 'Recordings' folder.`);
         }
     }
-
-    await browser.close();
-    console.log(`\n🎉 Job Done! Automation Complete for today.`);
 }
 
 startScraping();
