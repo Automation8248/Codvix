@@ -1,4 +1,4 @@
-// 👉 Anti-Detect Browser Interface (Stealth Library)
+// 👉 Anti-Detect Browser (Playwright Extra + Stealth Plugin)
 const { chromium } = require('playwright-extra');
 const stealth = require('puppeteer-extra-plugin-stealth')();
 chromium.use(stealth);
@@ -6,11 +6,36 @@ chromium.use(stealth);
 const fs = require('fs');
 const path = require('path');
 
-// Fast Random Delay Functions (Ab koi bhi delay 9 second se upar nahi jayega)
+// 👉 Secrets & Variables
+const SESSION_ID = process.env.IG_SESSION_ID;
+const TG_TOKEN = process.env.TELEGRAM_FAIL_TOKEN;
+const TG_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+
+if (!SESSION_ID) {
+    console.error("❌ ERROR: IG_SESSION_ID secret nahi mila!");
+    process.exit(1);
+}
+
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const randomSleep = (min, max) => sleep(Math.floor(Math.random() * (max - min + 1) + min));
 
-// 👉 Ultimate DOM & CSS Pop-up Annihilator (Jad se Delete karna)
+// 👉 Telegram Alert Function
+async function sendTelegramAlert(errorMessage) {
+    if (!TG_TOKEN || !TG_CHAT_ID) return;
+    try {
+        const text = `🚨 *Instavio Automation Failed*\n\n*Error:*\n${errorMessage}`;
+        const url = `https://api.telegram.org/bot${TG_TOKEN}/sendMessage`;
+        await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chat_id: TG_CHAT_ID, text: text, parse_mode: 'Markdown' })
+        });
+    } catch (e) {
+        console.error("⚠️ Telegram alert bhejne mein error aaya:", e.message);
+    }
+}
+
+// 👉 Ultimate DOM Pop-up Annihilator
 async function destroyAllPopups(page) {
     try {
         await page.evaluate(() => {
@@ -22,20 +47,14 @@ async function destroyAllPopups(page) {
             ];
             
             document.querySelectorAll(popupSelectors.join(', ')).forEach(element => {
-                if (element && element.id !== 'mount_0_0_0') {
-                    element.remove();
-                }
+                if (element && element.id !== 'mount_0_0_0') element.remove();
             });
 
             document.body.style.setProperty('overflow', 'auto', 'important');
-            document.body.style.setProperty('position', 'static', 'important');
             document.documentElement.style.setProperty('overflow', 'auto', 'important');
-            document.body.className = document.body.className.replace(/_a3gq|_abcm/g, ''); 
         });
-        await randomSleep(500, 1500); // Fast wait
-    } catch (error) {
-        // Silent catch
-    }
+        await randomSleep(500, 1500); 
+    } catch (error) {}
 }
 
 async function startScraping() {
@@ -44,91 +63,87 @@ async function startScraping() {
     const trackFile = path.join(instavioDir, 'track.json');
     const recordingsDir = path.join(instavioDir, 'Recordings'); 
 
-    if (!fs.existsSync(usernamesFile)) {
-        console.log("❌ usernames.txt nahi mili!");
-        return;
-    }
+    if (!fs.existsSync(usernamesFile)) return console.log("❌ usernames.txt nahi mili!");
+    if (!fs.existsSync(trackFile)) fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
+    if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir, { recursive: true });
 
-    let trackData = {};
-    if (!fs.existsSync(trackFile)) {
-        fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
-    } else {
+    let eligibleUsers = [];
+    try {
+        const usernames = fs.readFileSync(usernamesFile, 'utf-8').split('\n').map(u => u.trim()).filter(u => u);
+        if (usernames.length === 0) return console.log("ℹ️ usernames.txt khali hai.");
+
+        let trackData = {};
         try {
             const rawData = fs.readFileSync(trackFile, 'utf-8');
             if (rawData.trim() !== '') trackData = JSON.parse(rawData);
         } catch (err) {
             fs.writeFileSync(trackFile, JSON.stringify({}, null, 4));
         }
-    }
-    
-    if (!fs.existsSync(recordingsDir)) fs.mkdirSync(recordingsDir, { recursive: true });
 
-    const usernames = fs.readFileSync(usernamesFile, 'utf-8').split('\n').map(u => u.trim()).filter(u => u);
+        const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+        const now = Date.now();
 
-    if (usernames.length === 0) {
-        console.log("ℹ️ usernames.txt khali hai.");
-        return;
-    }
-
-    let eligibleUsers = [];
-    const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
-    for (const username of usernames) {
-        if (trackData[username] && trackData[username].last_processed) {
-            const timePassed = now - new Date(trackData[username].last_processed).getTime();
-            if (timePassed < THIRTY_DAYS_MS) {
-                console.log(`⏭️ '${username}' abhi 30-day cooldown me hai. Skipping...`);
-                continue; 
+        for (const username of usernames) {
+            if (trackData[username] && trackData[username].last_processed) {
+                const timePassed = now - new Date(trackData[username].last_processed).getTime();
+                if (timePassed < THIRTY_DAYS_MS) continue; 
             }
+            eligibleUsers.push(username); 
         }
-        eligibleUsers.push(username); 
-    }
 
-    if (eligibleUsers.length === 0) {
-        console.log("ℹ️ Aaj ke liye koi user bacha nahi hai.");
-        return;
-    }
+        if (eligibleUsers.length === 0) {
+            return console.log("ℹ️ Aaj ke liye koi user bacha nahi hai. Sab cooldown me hain.");
+        }
+        
+        console.log(`🎯 Targets for Today: ${eligibleUsers.length}`);
 
-    console.log(`\n======================================`);
-    console.log(`🎯 Total Targets Selected for Today: ${eligibleUsers.length}`);
-    console.log("🚀 Starting Ultimate Stealth Browser Automation (FAST MODE)...");
+        const browser = await chromium.launch({
+            headless: true, 
+            args: ['--disable-blink-features=AutomationControlled', '--disable-infobars', '--no-sandbox']
+        });
 
-    const browser = await chromium.launch({
-        headless: true, 
-        args: [
-            '--disable-blink-features=AutomationControlled',
-            '--disable-infobars',
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--ignore-certificate-errors',
-            '--window-position=0,0',
-            '--window-size=1280,720'
-        ]
-    });
+        // 👉 Dynamic Context Manager (Record ON/OFF handle karne ke liye)
+        let context = null;
+        let page = null;
+        let currentlyRecording = null;
 
-    const isManualRun = process.env.RECORD_VIDEO === 'true'; 
+        async function switchContext(needRecording) {
+            if (currentlyRecording === needRecording && context !== null) return;
+            
+            if (context) {
+                console.log(`🔄 Switching Context to change Recording state...`);
+                await context.close();
+            }
+            
+            const contextOptions = {
+                viewport: { width: 1280, height: 720 },
+                userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                locale: 'en-US', timezoneId: 'Asia/Kolkata', colorScheme: 'dark'
+            };
 
-    const contextOptions = {
-        viewport: { width: 1280, height: 720 },
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        locale: 'en-US',
-        timezoneId: 'Asia/Kolkata',
-        colorScheme: 'dark' 
-    };
+            if (needRecording) {
+                console.log("🎥 Screen Recording is ON for this phase.");
+                contextOptions.recordVideo = { dir: recordingsDir, size: { width: 1280, height: 720 } };
+            } else {
+                console.log("⚡ Screen Recording is OFF for this phase.");
+            }
 
-    if (isManualRun) {
-        console.log("🎥 Manual Run Detected. Screen Recording ON.");
-        contextOptions.recordVideo = { dir: recordingsDir, size: { width: 1280, height: 720 } };
-    }
+            context = await browser.newContext(contextOptions);
+            await context.addCookies([{
+                name: 'sessionid', value: SESSION_ID, domain: '.instagram.com', path: '/', secure: true, httpOnly: true
+            }]);
+            page = await context.newPage();
+            currentlyRecording = needRecording;
+        }
 
-    const context = await browser.newContext(contextOptions);
-    const page = await context.newPage();
-
-    try {
+        // 👉 Scraping Loop
         for (let i = 0; i < eligibleUsers.length; i++) {
             const selectedUsername = eligibleUsers[i];
             
+            // Logic: Record First 2 users (i=0, i=1) OR the Last user
+            const shouldRecord = (i === 0 || i === 1 || i === eligibleUsers.length - 1);
+            await switchContext(shouldRecord);
+
             console.log(`\n======================================`);
             console.log(`🔍 Processing User ${i + 1} of ${eligibleUsers.length}: [${selectedUsername}]`);
 
@@ -140,115 +155,106 @@ async function startScraping() {
             const oldSavedVideos = new Set(fs.readFileSync(videoTxtPath, 'utf-8').split('\n').map(l => l.trim()).filter(l => l));
 
             const profileUrl = `https://www.instagram.com/${selectedUsername}/`;
-            console.log(`🌐 Going directly to profile URL: ${profileUrl}`);
-            
-            try {
-                await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-                await randomSleep(3000, 5000); 
+            console.log(`🌐 Going directly to profile: ${profileUrl}`);
+            await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+            await randomSleep(3000, 5000); 
 
-                await destroyAllPopups(page);
+            await destroyAllPopups(page);
 
-                console.log("📜 Starting Live Fast Scrolling & Extraction...");
-                let previousHeight = 0;
-                let currentHeight = await page.evaluate(() => document.body.scrollHeight);
+            console.log("📜 Starting Live Fast Scrolling & Extraction...");
+            let previousHeight = 0;
+            let currentHeight = await page.evaluate(() => document.body.scrollHeight);
+            let reachedOldVideo = false;
+            let newlyCopiedThisSession = 0;
+            const tempCopied = new Set(); 
+
+            while (previousHeight !== currentHeight && !reachedOldVideo) {
+                previousHeight = currentHeight;
                 
-                let reachedOldVideo = false;
-                let newlyCopiedThisSession = 0;
-                const tempCopied = new Set(); 
+                try {
+                    const showMoreBtn = page.locator(':text-matches("Show more posts", "i")').first();
+                    if (await showMoreBtn.isVisible({ timeout: 1000 })) {
+                        await showMoreBtn.click({ force: true });
+                        await randomSleep(1500, 2500); 
+                    }
+                } catch (e) {}
 
-                while (previousHeight !== currentHeight && !reachedOldVideo) {
-                    previousHeight = currentHeight;
-                    
-                    // 👉 NAYA LOGIC: Check for "Show more posts" button
-                    try {
-                        const showMoreBtn = page.locator(':text-matches("Show more posts", "i")').first();
-                        if (await showMoreBtn.isVisible({ timeout: 1000 })) {
-                            console.log("👆 'Show more posts' button found! Clicking it...");
-                            await showMoreBtn.click({ force: true });
-                            await randomSleep(1500, 2500); // Click ke baad load hone ka chota wait
-                        }
-                    } catch (e) {
-                        // Button nahi mila toh koi baat nahi, aage badho
+                await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
+                await randomSleep(2000, 3500); 
+                currentHeight = await page.evaluate(() => document.body.scrollHeight);
+
+                const links = await page.$$eval('a', anchors => {
+                    return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
+                });
+
+                for (const link of links) {
+                    if (oldSavedVideos.has(link)) {
+                        console.log(`🛑 MATCH FOUND! (${link}). Stopping scroll.`);
+                        reachedOldVideo = true;
+                        break;
                     }
 
-                    // Scrolling
-                    await page.evaluate(() => window.scrollBy(0, document.body.scrollHeight));
-                    await randomSleep(2000, 3500); // Scroll ke baad 2 se 3.5 sec wait
-                    currentHeight = await page.evaluate(() => document.body.scrollHeight);
-
-                    const links = await page.$$eval('a', anchors => {
-                        return anchors.map(a => a.href).filter(href => href.includes('/reel/') || href.includes('/p/'));
-                    });
-
-                    for (const link of links) {
-                        if (oldSavedVideos.has(link)) {
-                            console.log(`🛑 MATCH FOUND! (${link}). Stopping scroll.`);
-                            reachedOldVideo = true;
-                            break;
-                        }
-
-                        if (!tempCopied.has(link)) {
-                            tempCopied.add(link);
-                            fs.appendFileSync(videoTxtPath, `${link}\n`);
-                            oldSavedVideos.add(link);
-                            newlyCopiedThisSession++;
-                        }
+                    if (!tempCopied.has(link)) {
+                        tempCopied.add(link);
+                        fs.appendFileSync(videoTxtPath, `${link}\n`); 
+                        oldSavedVideos.add(link);
+                        newlyCopiedThisSession++;
                     }
-                    console.log(`🔗 Scrolled... New added for ${selectedUsername}: ${newlyCopiedThisSession}`);
-                    
-                    await destroyAllPopups(page);
                 }
-                
-                console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
-
-                trackData[selectedUsername] = {
-                    last_processed: new Date().toISOString()
-                };
-                fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
-
-            } catch (userError) {
-                console.error(`⚠️ Error while processing ${selectedUsername}. Skipping to next. Details: ${userError.message}`);
+                console.log(`🔗 Copied so far: ${newlyCopiedThisSession}`);
+                await destroyAllPopups(page);
             }
             
+            console.log(`✅ Extraction Complete for ${selectedUsername}. Saved ${newlyCopiedThisSession} new URLs.`);
+            trackData[selectedUsername] = { last_processed: new Date().toISOString() };
+            fs.writeFileSync(trackFile, JSON.stringify(trackData, null, 4));
+            
             if (i < eligibleUsers.length - 1) {
-                // Max delay between users is now strictly under 9 seconds (4s to 8s)
                 const interUserDelay = Math.floor(Math.random() * (8000 - 4000 + 1) + 4000); 
-                console.log(`\n⏳ Switching to next profile in ${(interUserDelay/1000).toFixed(1)} seconds...`);
+                console.log(`⏳ Switching to next profile in ${(interUserDelay/1000).toFixed(1)} seconds...`);
                 await sleep(interUserDelay);
             }
         }
 
-        console.log(`\n🏠 All target users processed. Going back to Home feed...`);
-        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
-        await destroyAllPopups(page); 
-
-        // Home scroll duration is now Max 9 seconds (5s to 9s)
-        const homeScrollDuration = Math.floor(Math.random() * (9000 - 5000 + 1) + 5000); 
-        console.log(`💤 Spending ${(homeScrollDuration/1000).toFixed(1)} seconds on home feed before closing...`);
+        // ==========================================
+        // 🎬 POST SCRAPING ACTIVITIES (Last user context = Recording ON)
+        // ==========================================
         
-        const startTime = Date.now();
-        while (Date.now() - startTime < homeScrollDuration) {
-            await page.evaluate(() => window.scrollBy({ top: Math.random() * 500 + 300, behavior: 'smooth' }));
-            await randomSleep(1500, 2500);
-            await destroyAllPopups(page);
+        console.log(`\n🏠 All targets done! Going to Home Feed and Refreshing...`);
+        await page.goto('https://www.instagram.com/', { waitUntil: 'domcontentloaded' });
+        await randomSleep(2000, 3000);
+        await page.reload({ waitUntil: 'domcontentloaded' }); // Refresh Home Page
+        await randomSleep(3000, 5000);
+        await destroyAllPopups(page);
+
+        console.log(`📱 Navigating to Reels section...`);
+        await page.goto('https://www.instagram.com/reels/', { waitUntil: 'domcontentloaded' });
+        await randomSleep(2000, 4000);
+        await destroyAllPopups(page);
+
+        // 👉 Watch 5 to 7 Reels
+        const reelsToWatch = Math.floor(Math.random() * (7 - 5 + 1)) + 5;
+        console.log(`🍿 Watching ${reelsToWatch} Reels randomly...`);
+
+        for (let r = 1; r <= reelsToWatch; r++) {
+            const watchTime = Math.floor(Math.random() * (8000 - 4000 + 1) + 4000);
+            console.log(`👁️ Watching reel ${r}/${reelsToWatch} for ${(watchTime/1000).toFixed(1)} seconds...`);
+            await sleep(watchTime);
+            await page.evaluate(() => window.scrollBy(0, window.innerHeight));
         }
+        console.log("✅ Reels watching complete.");
+
+        // Logout logic yahan se hata diya gaya hai. Session ab safe rahega.
+        console.log("✅ Automation finished successfully. Closing browser.");
+
+        await context.close(); 
+        await browser.close();
 
     } catch (error) {
         console.error(`❌ Global Error during automation:`, error.message);
-    } finally {
-        await context.close(); 
-        if (isManualRun) {
-            console.log(`🎥 Complete Screen Recording saved in 'Recordings' folder.`);
-        }
+        await sendTelegramAlert(error.message);
+        process.exit(1); 
     }
-
-    // Final delay is now Max 9 seconds (4s to 8.5s)
-    const randomEndDelay = Math.floor(Math.random() * (8500 - 4000 + 1) + 4000); 
-    console.log(`\n💤 Applying final delay of ${(randomEndDelay/1000).toFixed(2)} seconds...`);
-    await sleep(randomEndDelay);
-
-    await browser.close();
-    console.log(`\n🎉 Job Done! Fast Stealth Automation Complete.`);
 }
 
 startScraping();
