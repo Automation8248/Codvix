@@ -1,10 +1,7 @@
 name: Instavio Anti-Detect Scraper
 
 on:
-  workflow_dispatch: # Manual button dabane par (Screen Recording ON hogi)
-  schedule:
-    # 0 1 1 * * = Har mahine ki 1 tareekh ko UTC 1:00 AM (Yani India Time IST ke subah 6:30 AM) par chalega
-    - cron: '0 1 1 * *' 
+  workflow_dispatch: # Sirf manual button ("Run workflow") se chalega
 
 permissions:
   contents: write
@@ -12,7 +9,7 @@ permissions:
 jobs:
   run-scraper:
     runs-on: ubuntu-latest
-    timeout-minutes: 90 # Thoda time badha diya hai taaki Reels dekhne aur multiple accounts me error na aaye
+    timeout-minutes: 90 # Reels dekhne aur long process ke liye time limit badhai gayi hai
 
     steps:
       - name: 📥 Checkout Repository
@@ -29,44 +26,36 @@ jobs:
           npm install playwright playwright-extra puppeteer-extra-plugin-stealth
           npx playwright install --with-deps chromium
 
-      - name: 🚀 Run Multi-Account Stealth Scraper
+      - name: 🚀 Run Stealth Scraper
         working-directory: ./Instavio
         env:
-          # Screen recording manual run pe trigger hogi
-          RECORD_VIDEO: ${{ github.event_name == 'workflow_dispatch' }}
-          
-          # Minimum 4 Accounts setup (GitHub Secrets se fetch honge)
-          IG_USER_1: ${{ secrets.IG_USER_1 }}
-          IG_PASS_1: ${{ secrets.IG_PASS_1 }}
-          
-          IG_USER_2: ${{ secrets.IG_USER_2 }}
-          IG_PASS_2: ${{ secrets.IG_PASS_2 }}
-          
-          IG_USER_3: ${{ secrets.IG_USER_3 }}
-          IG_PASS_3: ${{ secrets.IG_PASS_3 }}
-          
-          IG_USER_4: ${{ secrets.IG_USER_4 }}
-          IG_PASS_4: ${{ secrets.IG_PASS_4 }}
-
+          # GitHub Secrets se variables fetch karna
+          IG_SESSION_ID: ${{ secrets.IG_SESSION_ID }}
+          TELEGRAM_FAIL_TOKEN: ${{ secrets.TELEGRAM_FAIL_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: node scraper.js
 
       - name: 🎥 Upload Screen Recording (Artifact)
         uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'workflow_dispatch'
+        # always() isliye taaki agar code error de, tab bhi record hui video upload ho jaye
+        if: always() 
         with:
           name: instavio-screen-recordings
           path: Instavio/Recordings/**/*.webm
           retention-days: 5 
 
       - name: 💾 Save Track data & Video links to GitHub
+        working-directory: ./
         run: |
           git config --global user.name "GitHub Action Bot"
           git config --global user.email "action@github.com"
-          # Naye URLs, user memory aur account rotation memory ko update karega
-          git add Instavio/*/video.txt Instavio/track.json Instavio/account_track.json || true
-          git commit -m "Auto-update tracked users, account rotation, and video URLs" || echo "No new data to commit"
           
-          # 👉 ERROR FIX: Push karne se pehle GitHub se latest changes merge karega
+          # Naye URLs aur user memory ko update karega
+          git add Instavio/*/video.txt Instavio/track.json || true
+          git commit -m "Auto-update tracked users and video URLs" || echo "No new data to commit"
+          
+          # Push karne se pehle GitHub se latest changes merge karega taaki rejection error na aaye
           git pull --rebase origin main
           
+          # Final push to repository
           git push
