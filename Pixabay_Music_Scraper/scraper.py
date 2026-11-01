@@ -32,7 +32,7 @@ def run_automation():
         # Stealth plugin apply karna (Yeh sabse important hai anti-bot bypass ke liye)
         stealth_sync(page)
 
-        total_pages = 5
+        total_pages = 30
         
         for page_num in range(1, total_pages + 1):
             url = f"https://pixabay.com/music/search/soft/?pagi={page_num}"
