@@ -1,4 +1,4 @@
-name: Pixabay Music Scraper (SeleniumBase)
+name: Pixabay Music Scraper Final
 
 on:
   workflow_dispatch:
@@ -21,27 +21,47 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y xvfb ffmpeg
 
-      - name: Install Python Dependencies
+      - name: Locate Files and Install Dependencies
         run: |
+          # Check karega ki file root mein hai ya folder ke andar
+          if [ -f "requirements.txt" ]; then
+            echo "Files root directory mein mil gayi hain."
+          elif [ -d "Pixabay_Music_Scraper" ]; then
+            echo "Folder detect hua, folder ke andar ja rahe hain..."
+            cd Pixabay_Music_Scraper
+          else
+            echo "ERROR: requirements.txt nahi mili! Kripya GitHub par file check karein."
+            exit 1
+          fi
+          
           pip install -r requirements.txt
           sbase install chromedriver
 
       - name: Run Scraper with Virtual Display
         run: |
+          if [ -d "Pixabay_Music_Scraper" ] && [ ! -f "scraper.py" ]; then
+            cd Pixabay_Music_Scraper
+          fi
           xvfb-run --auto-servernum --server-num=99 --server-args="-screen 0 1280x720x24" python scraper.py
         env:
           DISPLAY: :99
 
-      - name: Upload Music Links
+      - name: Upload Music Links Artifact
         uses: actions/upload-artifact@v4
         with:
           name: music-links
-          path: music_links.txt
+          path: |
+            music_links.txt
+            Pixabay_Music_Scraper/music_links.txt
+          if-no-files-found: warn
           retention-days: 5
 
-      - name: Upload Screen Recording
+      - name: Upload Screen Recording Artifact
         uses: actions/upload-artifact@v4
         with:
           name: screen-recording
-          path: recordings/
+          path: |
+            recordings/
+            Pixabay_Music_Scraper/recordings/
+          if-no-files-found: warn
           retention-days: 5
