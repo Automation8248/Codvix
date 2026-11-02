@@ -1,2 +1,0 @@
-seleniumbase>=4.24.0
-beautifulsoup4
