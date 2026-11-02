@@ -1,37 +1,36 @@
-name: Extract and Rename Images
+name: Download, Extract and Rename Images
 
-# Manual run ke liye workflow_dispatch
 on:
   workflow_dispatch:
 
-# Push karne ke liye write permission zaroori hai
 permissions:
   contents: write
 
 jobs:
-  unzip-and-push:
+  process-images:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Repository ka code runner me lana
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Python setup karna
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
 
-      # 3. Python script run karna
-      - name: Run Unzip Script
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install gdown
+
+      - name: Run Python Script
         run: python unzip_folder/script.py
 
-      # 4. Nayi images ko add karke GitHub par commit aur push karna
       - name: Commit and Push Changes
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add "Pixhub/Sales post/emergency fund/*"
-          git commit -m "Auto-extracted and renamed images to emergency fund folder" || echo "No changes to commit"
+          git commit -m "Auto-downloaded, extracted, and renamed images from Google Drive" || echo "No changes to commit"
           git push
