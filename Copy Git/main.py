@@ -24,7 +24,7 @@ def main():
     
     data = {
         "name": new_repo_name,
-        "private": True,
+        "private": false,
         "description": "Payment Gateway Code Repository"
     }
 
