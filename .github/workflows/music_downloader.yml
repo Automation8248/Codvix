@@ -7,7 +7,6 @@ jobs:
   run-automation:
     runs-on: ubuntu-latest
     
-    # Workflow ko repo me files commit karne ki permission dena
     permissions:
       contents: write
 
@@ -24,13 +23,17 @@ jobs:
         run: |
           pip install requests
 
+      # Yahan working-directory add kiya gaya hai
       - name: Run Downloader & Uploader Script
+        working-directory: "./Music Downloader" 
         env:
           AUTOMATION_STORAGE_TOKEN: ${{ secrets.AUTOMATION_STORAGE_TOKEN }}
           AUTOMATION_CHAT_ID: ${{ secrets.AUTOMATION_CHAT_ID }}
         run: python main.py
 
+      # Commit karte waqt bhi directory define karni hogi
       - name: Commit and Push Updated History
+        working-directory: "./Music Downloader"
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
