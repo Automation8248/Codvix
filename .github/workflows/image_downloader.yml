@@ -16,7 +16,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-node-version: '3.10'
+        python-version: '3.12'
 
     # Step 3: Install Required Dependencies
     - name: Install Dependencies
@@ -26,6 +26,8 @@ jobs:
 
     # Step 4: Run the Image Process Automation Script
     - name: Run Image Processing Script
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Passes the secure workflow context token to Python
       run: python download_images.py
 
     # Step 5: Export the packed Zip file back to the browser interface
