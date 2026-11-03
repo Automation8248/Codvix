@@ -6,14 +6,35 @@ def download_rename_zip():
     # Public API endpoint for your repository images folder
     api_url = "https://github.com"
     
-    print("Fetching file list from GitHub repository...")
-    response = requests.get(api_url)
+    # Configure headers to include the GitHub Token to prevent runner rate limiting
+    headers = {
+        "Accept": "application/vnd.github.v3+json"
+    }
     
+    # Check if the automated workflow token is present in environment variables
+    github_token = os.getenv("GITHUB_TOKEN")
+    if github_token:
+        headers["Authorization"] = f"token {github_token}"
+        print("Authenticated API session initialized.")
+    else:
+        print("Warning: Running without token authentication.")
+
+    print("Fetching file list from GitHub repository...")
+    response = requests.get(api_url, headers=headers)
+    
+    # Gracefully catch bad requests before trying to parse JSON
     if response.status_code != 200:
-        print(f"Error fetching repo contents: {response.status_code}")
+        print(f"Error fetching repo contents. Status Code: {response.status_code}")
+        print(f"Server Response Preview:\n{response.text[:200]}")
         return
         
-    contents = response.json()
+    try:
+        contents = response.json()
+    except Exception as e:
+        print(f"Failed to decode response as JSON. Error: {e}")
+        print(f"Raw Response: {response.text}")
+        return
+
     valid_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
     
     # Filter for image assets
@@ -39,7 +60,8 @@ def download_rename_zip():
             
             print(f"Downloading [{index}/{len(image_files)}]: {new_name}")
             
-            img_response = requests.get(file_url)
+            # Use authenticated headers to download individual files safely if needed
+            img_response = requests.get(file_url, headers=headers)
             if img_response.status_code == 200:
                 zipf.writestr(new_name, img_response.content)
             else:
