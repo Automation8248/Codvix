@@ -1,0 +1,35 @@
+name: Lucas Hart Video Automation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  generate_video:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install System Dependencies (FFmpeg & ImageMagick)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick
+          # Fix ImageMagick policy for MoviePy TextClip in Ubuntu
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Python Dependencies & Run Script
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          TELEGRAM_FAILD_TOKEN: ${{ secrets.TELEGRAM_FAILD_TOKEN }}
+          TELEGRAM_FAILD_ID: ${{ secrets.TELEGRAM_FAILD_ID }}
+        run: |
+          cd "Video Generator/Lucas Hart"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          python main.py
