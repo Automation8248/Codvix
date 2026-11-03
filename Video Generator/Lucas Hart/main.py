@@ -51,18 +51,26 @@ def get_free_quote_only():
         return "Your only limit is your mind."
 
 def extract_images_from_drive_folder(folder_url):
-    """Scrapes a public Google Drive folder URL to extract direct image links without API key."""
+    """Scrapes a public Google Drive folder URL to extract direct image links."""
     folder_id_match = re.search(r'folders/([a-zA-Z0-9_-]+)', folder_url) or re.search(r'id=([a-zA-Z0-9_-]+)', folder_url)
     if not folder_id_match:
+        print(f"Invalid folder format in URL: {folder_url}")
         return []
     
     folder_id = folder_id_match.group(1)
     url = f"https://drive.google.com/drive/folders/{folder_id}"
     
+    # Real Browser User-Agent added to bypass Drive Bot Protection
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
+    
     try:
-        res = requests.get(url, timeout=15)
-        # Regex to find Google Drive file IDs and image extensions from the folder's HTML JSON array
-        pattern = r'\["([a-zA-Z0-9_-]{28,33})","([^"]+?\.(?:jpg|jpeg|png))"'
+        print(f"Scraping Drive Folder URL: {url}")
+        res = requests.get(url, headers=headers, timeout=15)
+        
+        # Relaxed Regex to perfectly catch file IDs & names like images.1.jpeg
+        pattern = r'"([a-zA-Z0-9_-]{28,33})","([^"]+?\.(?:jpg|jpeg|png))"'
         matches = re.findall(pattern, res.text, re.IGNORECASE)
         
         extracted_links = []
@@ -72,6 +80,7 @@ def extract_images_from_drive_folder(folder_url):
                 unique_ids.add(file_id)
                 extracted_links.append(f"https://drive.google.com/uc?id={file_id}")
                 
+        print(f"[DEBUG] Total unique images found in folder: {len(extracted_links)}")
         return extracted_links
     except Exception as e:
         print(f"Error fetching folder {folder_url}: {e}")
@@ -90,7 +99,7 @@ def download_drive_file(link, output_path):
         with open(output_path, "wb") as f:
             f.write(res.content)
         return output_path
-    raise Exception("Failed to download image from Drive.")
+    raise Exception(f"Failed to download image from Drive. Status code: {res.status_code}")
 
 def download_direct_file(link, output_path):
     """Downloads audio from a direct link."""
@@ -118,6 +127,8 @@ def get_file_with_cooling(file_type, links_list, track_data):
                 continue # Skip, still in cooling period
         available_links.append(link)
         
+    print(f"[DEBUG] {file_type.capitalize()} available after cooling filter: {len(available_links)}")
+    
     if not available_links:
         return None, track_data
         
@@ -156,6 +167,7 @@ def main():
         video_filename = f"shorts.{current_video_num}.mp4"
         
         # 4. Fetch Asset Lists & Expand Folders
+        print("[DEBUG] Fetching links from txt files...")
         with open("images.txt", "r") as f:
             raw_image_lines = f.readlines()
             
@@ -163,8 +175,11 @@ def main():
         for line in raw_image_lines:
             line = line.strip()
             if not line: continue
-            # Check if it's a folder link
-            if "/folders/" in line or "drive.google.com/drive/u/" in line:
+            # Ensure mobile URLs are corrected
+            if "mobile/" in line:
+                line = line.replace("drive/u/0/mobile/folders", "drive/folders")
+                
+            if "/folders/" in line or "drive.google.com/drive" in line:
                 folder_imgs = extract_images_from_drive_folder(line)
                 image_links.extend(folder_imgs)
             else:
@@ -177,6 +192,7 @@ def main():
         bg_link, track_data = get_file_with_cooling("images", image_links, track_data)
         if not bg_link:
             raise Exception("Images list khali hai ya sabhi images abhi 15 din ke cooling me hain!")
+        print(f"[DEBUG] Selected Image Link: {bg_link}")
         bg_path = download_drive_file(bg_link, "temp_bg.jpg")
 
         audio_link, track_data = get_file_with_cooling("audios", audio_links, track_data)
@@ -186,6 +202,7 @@ def main():
         quote_text = get_free_quote_only()
 
         # 7. Create Video
+        print("[DEBUG] Compiling Video with MoviePy...")
         bg = ImageClip(bg_path).set_duration(DURATION).resize(height=1920).fl_image(lambda image: (image * 0.6).astype('uint8'))
         full_display_text = f"\"{quote_text}\"\n\n{FIXED_AUTHOR}"
         txt = TextClip(full_display_text, fontsize=80, color='white', font='Arial-Bold', 
@@ -202,6 +219,7 @@ def main():
         final.write_videofile(video_filename, fps=24, codec="libx264", audio_codec="aac")
 
         # 8. Upload to GitHub Repo via API
+        print(f"[DEBUG] Uploading {video_filename} to GitHub...")
         with open(video_filename, "rb") as f:
             update_github_file(repo, f"{VIDEO_FOLDER_PATH}/{video_filename}", f.read(), f"Upload {video_filename}")
         
