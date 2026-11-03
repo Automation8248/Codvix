@@ -1,0 +1,54 @@
+name: Lucas Hart Video Automation
+
+on:
+  schedule:
+    # Ye har din subah 10:00 AM (UTC) par chalega. Aap ise apne hisaab se badal sakte hain.
+    - cron: '0 10 * * *'
+  workflow_dispatch: # Isse aap GitHub repo me 'Run workflow' button se manually bhi chala payenge
+
+jobs:
+  build-and-upload:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Repo ko runner me lana (UNIVERSAL_TOKEN use karke taki push permission mile)
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.UNIVERSAL_TOKEN }}
+
+      # Step 2: Python environment setup
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      # Step 3: MoviePy ke liye ImageMagick install karna (TextClip chalane ke liye zaroori hai)
+      - name: Install System Dependencies (ImageMagick)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y imagemagick
+          # Policy fix taaki MoviePy text generate kar sake bina error ke
+          sudo sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@\*" -->/g' /etc/ImageMagick-6/policy.xml
+
+      # Step 4: Python libraries install karna
+      - name: Install Python Packages
+        run: |
+          pip install requests moviepy Pillow
+
+      # Step 5: Python code run karna
+      - name: Run Video Generator
+        env:
+          UNIVERSAL_TOKEN: ${{ secrets.UNIVERSAL_TOKEN }}
+          AUTOMATION_STORAGE_TOKEN: ${{ secrets.AUTOMATION_STORAGE_TOKEN }}
+        run: |
+          # Pehle folder ke andar jayenge taaki local paths (images, track.json) sahi se kaam karein
+          cd "Video Generator/Lucas Hart"
+          python main.py
+
+      # Step 6: track.json ko save karke wapas repo me commit karna (Cooling track karne ke liye)
+      - name: Commit and Push updated track.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Auto-update track.json state [skip ci]"
+          file_pattern: "Video Generator/Lucas Hart/track.json"
