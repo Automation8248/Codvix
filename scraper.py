@@ -3,11 +3,11 @@ import random
 from playwright.sync_api import sync_playwright
 
 def run(playwright):
-    # 1. Folders create karna jahan video aur downloaded files save hongi
+    # Folders banayen download aur video ke liye
     os.makedirs("downloads", exist_ok=True)
     os.makedirs("videos", exist_ok=True)
 
-    # 2. Fake (Headless) browser aur screen recording start karna
+    # Headless browser aur screen recording set karein
     browser = playwright.chromium.launch(headless=True)
     context = browser.new_context(
         record_video_dir="videos/",
@@ -17,54 +17,70 @@ def run(playwright):
     )
     page = context.new_page()
 
-    # 3. Download handler: Jab file download hogi, toh use 'downloads' folder me save karega
+    # Download pakadne ka function
     def handle_download(download):
         file_path = os.path.join("downloads", download.suggested_filename)
         print(f"File save ho rahi hai: {file_path}")
         download.save_as(file_path)
 
     page.on("download", handle_download)
-    print("Browser start ho gaya. Screen recording aur script chalu hai...")
+    print("Browser start ho gaya. Screen recording chal rahi hai...")
     
-    # 4. Google Drive link par jana
+    # Drive link par jayen
     url = "https://drive.google.com/drive/folders/1pnRfQod0LWTG1Lc5PgYDoESsMXtIYtxX"
     page.goto(url)
     
-    # Grid/Images puri tarah load hone ka wait karna
-    page.wait_for_timeout(8000)
-
-    # 5. Randomly kisi image ko select karna
-    # Screen ke center me click karke Drive ke files area par focus lana
-    page.mouse.click(640, 400)
-    page.wait_for_timeout(1000)
-
-    # Randomly 1 se 15 ke beech move karke kisi random image ko select karna
-    random_moves = random.randint(1, 15)
-    print(f"Randomly {random_moves} step aage badh kar file select kar raha hai...")
+    # Drive ki files (Grid ya List view) load hone ka wait karein
+    print("Page load ho raha hai, files render hone ka wait kar rahe hain...")
+    page.wait_for_selector('div[role="gridcell"], div[role="row"]', timeout=15000)
+    page.wait_for_timeout(3000) # Animations aur lazy-loading set hone ke liye thoda extra time
     
-    for _ in range(random_moves):
-        page.keyboard.press("ArrowRight")
-        page.keyboard.press("ArrowDown") # Grid ya List view dono ke liye kaam karega
-        page.wait_for_timeout(300)
-
-    # 6. Selected random image ko download karna (Shift+D is Drive's download shortcut)
-    print("Random image mil gayi, download trigger kar raha hai...")
-    try:
-        # Playwright ko batana ki download start hone wala hai
-        with page.expect_download(timeout=30000) as download_info:
-            page.keyboard.press("Shift+D")
+    # Page par jitni bhi files hain unki list nikalein
+    files = page.locator('div[role="gridcell"], div[role="row"]').all()
+    
+    if not files:
+        print("Koi files nahi mili. Link ya network check karein.")
+        context.close()
+        browser.close()
+        return
         
-        print("Download successfully 'downloads/' folder me aa gaya!")
+    print(f"Total {len(files)} files/folders mile.")
+    
+    # 1. Randomly kisi ek file ko select karein
+    random_file = random.choice(files)
+    
+    # 2. File ko screen par focus me laayein aur Double-Click karein
+    print("Random file select kar li gayi hai, ab double-click kar raha hai...")
+    random_file.scroll_into_view_if_needed()
+    random_file.dblclick()
+    
+    # 3. Image preview open hone ka wait karein
+    print("Image preview open hone ka wait kar raha hai...")
+    page.wait_for_timeout(5000) 
+    
+    # 4. Preview overlay me se Download button dhoond kar click karein
+    print("Preview open ho gaya, ab file download kar raha hai...")
+    try:
+        with page.expect_download(timeout=30000) as download_info:
+            # Drive preview me download icon ka aria-label "Download" hota hai
+            download_btn = page.locator('[aria-label="Download"]').first
+            if download_btn.is_visible():
+                download_btn.click()
+            else:
+                # Agar button nahi mila toh keyboard shortcut use karega
+                page.keyboard.press("Shift+D")
+                
+        print("Download successfully complete aur save ho gaya!")
     except Exception as e:
-        print(f"Download me error aaya (shayad folder empty ho ya focus na hua ho): {e}")
+        print(f"Download trigger karne me error aaya: {e}")
 
-    # Video me aakhiri actions save karne ke liye thoda rukna
+    # Aakhiri screen recording properly save hone ke liye wait karein
     page.wait_for_timeout(4000)
 
-    # Context close karte hi video automatically 'videos/' folder me save ho jayegi
+    # Close karte hi background video 'videos/' folder me save ho jayegi
     context.close()
     browser.close()
-    print("Automation pura hua.")
+    print("Automation pura hua. Zip file ready ho rahi hai.")
 
 with sync_playwright() as playwright:
     run(playwright)
