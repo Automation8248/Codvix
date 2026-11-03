@@ -1,28 +1,36 @@
 name: Download, Rename and Zip Images
 
 on:
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions UI
+  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
   build-and-zip:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Clone full repo content into the runner environment natively
-    - name: Checkout Repository Content
+    # Step 1: Clone workspace codes
+    - name: Checkout Repository
       uses: actions/checkout@v4
 
-    # Step 2: Configure Python Environment (Using standard built-in setup)
+    # Step 2: Setup target Python environment
     - name: Set up Python Runtime
       uses: actions/setup-python@v5
       with:
         python-version: '3.12'
 
-    # Step 3: Run the local file-handler python script
-    - name: Execute Local Image Processing Script
+    # Step 3: Install runtime dependencies
+    - name: Install Dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests
+
+    # Step 4: Run the fixed image processor tool using custom GH_TOKEN secret
+    - name: Run Image Processing Script
+      env:
+        GH_TOKEN: ${{ secrets.GH_TOKEN }} # Binds your custom secret to the environment variable
       run: python download_images.py
 
-    # Step 4: Export the packed Zip file back to the browser interface
+    # Step 5: Export Zip file as direct web browser artifact
     - name: Upload Renamed Images Zip
       uses: actions/upload-artifact@v4
       with:
