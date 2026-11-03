@@ -1,46 +1,66 @@
 import os
-import shutil
+import requests
 import zipfile
 
-def process_local_images():
-    # Images folder ka path workflow environment ke hisab se set kiya hai
-    source_dir = "images"
+def download_rename_zip():
+    # Target repository folder endpoint
+    api_url = "https://github.com"
     
-    if not os.path.exists(source_dir):
-        print(f"Error: '{source_dir}' directory nahi mili! Ek baar check karein.")
-        return
+    # Set headers to explicitly avoid HTTP 406 or request blocks
+    headers = {
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+    }
+    
+    # Read the custom secret name GH_TOKEN from environment parameters
+    gh_token = os.getenv("GH_TOKEN")
+    if gh_token:
+        headers["Authorization"] = f"token {gh_token}"
+        print("Authenticated session initiated using GH_TOKEN.")
+    else:
+        print("Warning: Running without GH_TOKEN authentication.")
 
+    print("Fetching file list from target GitHub repository...")
+    response = requests.get(api_url, headers=headers)
+    
+    if response.status_code != 200:
+        print(f"Error fetching repo contents. Status Code: {response.status_code}")
+        print(f"Server Raw Output Preview: {response.text[:200]}")
+        return
+        
+    contents = response.json()
     valid_extensions = ('.jpg', '.jpeg', '.png', '.webp', '.gif')
     
-    # Folder ke andar ki saari files read karein
-    files = os.listdir(source_dir)
-    
-    # Sirf valid images ko filter karein
-    image_files = [f for f in files if f.lower().endswith(valid_extensions)]
+    # Filter for image assets
+    image_files = [item for item in contents if item['type'] == 'file' and item['name'].lower().endswith(valid_extensions)]
     
     if not image_files:
-        print("Folder ke andar koi valid images nahi mili!")
+        print("No valid images found in the target folder!")
         return
-
-    print(f"Total {len(image_files)} images mili hain. Renaming aur Zipping shuru ho rahi hai...")
-
+        
+    print(f"Found {len(image_files)} images. Starting processing...")
+    
     zip_name = "all_images_renamed.zip"
     
-    # Seedhe zip bundle ke andar write karein bina original files ko delete kiye
+    # Direct streaming of raw download bytes into a zip bundle
     with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for index, filename in enumerate(sorted(image_files), start=1):
-            ext = os.path.splitext(filename).lower()
+        for index, item in enumerate(image_files, start=1):
+            file_url = item['download_url']
+            original_name = item['name']
+            ext = os.path.splitext(original_name).lower()
             
-            # Aapke requirement ke mutabik rename format: image.1.jpg, image.2.jpeg
+            # Formatting sequence: image.1.jpg, image.2.jpeg etc.
             new_name = f"image.{index}{ext}"
             
-            file_path = os.path.join(source_dir, filename)
-            print(f"Packing [{index}/{len(image_files)}]: {filename} -> {new_name}")
+            print(f"Downloading [{index}/{len(image_files)}]: {new_name}")
             
-            # File ko zip bundle mein new_name ke sath map karein
-            zipf.write(file_path, new_name)
-            
-    print(f"Success! Zip archive perfectly ready ho chuka hai: {zip_name}")
+            img_response = requests.get(file_url, headers={"User-Agent": headers["User-Agent"]})
+            if img_response.status_code == 200:
+                zipf.writestr(new_name, img_response.content)
+            else:
+                print(f"Failed to fetch: {original_name}")
+                
+    print(f"\nSuccess! All images have been zipped into: {zip_name}")
 
 if __name__ == "__main__":
-    process_local_images()
+    download_rename_zip()
