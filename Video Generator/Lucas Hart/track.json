@@ -1,12 +1,16 @@
 {
-    "current_video": 2,
+    "current_video": 3,
     "cooling_images": {
-        "https://drive.google.com/uc?export=download&id=1od9YiPaUu5_PP-qHz4juZg1xbwW2C8zz": "2026-11-04"
+        "https://drive.google.com/uc?export=download&id=1od9YiPaUu5_PP-qHz4juZg1xbwW2C8zz": "2026-11-04",
+        "https://drive.google.com/uc?export=download&id=1dFDCaObGt4sYpQRgBvwTyv9jKIkhPKOI": "2026-11-04"
     },
     "cooling_audios": {
         "https://cdn.pixabay.com/audio/2025/07/17/audio_6a9fd411e6.mp3": "2026-11-04"
     },
-    "last_generated_video": "shorts.1.mp4",
-    "last_used_image": "https://drive.google.com/uc?export=download&id=1od9YiPaUu5_PP-qHz4juZg1xbwW2C8zz",
-    "last_used_audio": "https://cdn.pixabay.com/audio/2025/07/17/audio_6a9fd411e6.mp3"
+    "last_generated_video": "shorts.2.mp4",
+    "last_used_image": "https://drive.google.com/uc?export=download&id=1dFDCaObGt4sYpQRgBvwTyv9jKIkhPKOI",
+    "last_used_audio": "https://cdn.pixabay.com/audio/2023/01/01/audio_816821e627.mp3",
+    "cooling_ringtones": {
+        "https://cdn.pixabay.com/audio/2023/01/01/audio_816821e627.mp3": "2026-11-04"
+    }
 }
