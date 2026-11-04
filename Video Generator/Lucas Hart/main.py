@@ -43,9 +43,15 @@ def send_telegram_error(error_msg):
     except Exception as e:
         print(f"Telegram alert failed: {e}")
 
+def get_headers():
+    """Returns standard browser headers for requests to avoid blocking."""
+    return {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36"
+    }
+
 def get_free_quote_only():
     try:
-        res = requests.get("https://zenquotes.io/api/random", timeout=10)
+        res = requests.get("https://zenquotes.io/api/random", headers=get_headers(), timeout=10)
         return res.json()[0]['q']
     except: 
         return "Your only limit is your mind."
@@ -55,14 +61,12 @@ def download_image_file(link, output_path):
     file_id_match = re.search(r'id=([a-zA-Z0-9_-]+)', link) or re.search(r'/d/([a-zA-Z0-9_-]+)', link)
     
     if file_id_match:
-        # If it's a Google Drive link, convert to direct download URL
         file_id = file_id_match.group(1)
         url = f"https://drive.google.com/uc?id={file_id}"
     else:
-        # If it's a standard direct link
         url = link
 
-    res = requests.get(url, allow_redirects=True)
+    res = requests.get(url, headers=get_headers(), allow_redirects=True)
     if res.status_code == 200:
         with open(output_path, "wb") as f:
             f.write(res.content)
@@ -71,7 +75,7 @@ def download_image_file(link, output_path):
 
 def download_audio_file(link, output_path):
     """Downloads audio from a direct link."""
-    res = requests.get(link, allow_redirects=True)
+    res = requests.get(link, headers=get_headers(), allow_redirects=True)
     if res.status_code == 200:
         with open(output_path, "wb") as f:
             f.write(res.content)
@@ -92,7 +96,7 @@ def get_file_with_cooling(file_type, links_list, track_data):
         if last_used_str:
             last_used_date = datetime.strptime(last_used_str, "%Y-%m-%d").date()
             if (today - last_used_date).days < 15:
-                continue # Skip, still in cooling period
+                continue
         available_links.append(link)
         
     print(f"[DEBUG] {file_type.capitalize()} available after 15-day cooling filter: {len(available_links)}")
@@ -101,7 +105,6 @@ def get_file_with_cooling(file_type, links_list, track_data):
         return None, track_data
         
     selected_link = random.choice(available_links)
-    # Apply new 15-day cooling timestamp
     track_data[f"cooling_{file_type}"][selected_link] = today.strftime("%Y-%m-%d")
     return selected_link, track_data
 
@@ -121,21 +124,20 @@ def main():
         g = Github(GH_TOKEN)
         repo = g.get_repo(REPO_NAME)
         
-        # 2. Load tracking state (track.json) from GitHub
+        # 2. Load tracking state
         try:
             track_file = repo.get_contents(TRACK_FILE_PATH)
             track_data = json.loads(track_file.decoded_content.decode('utf-8'))
         except:
             track_data = {"current_video": 1, "cooling_images": {}, "cooling_audios": {}}
 
-        # 3. Determine Video Name based on 90-Days Loop
+        # 3. Determine Video Name
         current_video_num = track_data.get("current_video", 1)
         if current_video_num > 90:
-            current_video_num = 1  # Reset cycle
+            current_video_num = 1
         video_filename = f"shorts.{current_video_num}.mp4"
         
-        # 4. Fetch Asset Lists from txt files
-        print("[DEBUG] Fetching direct links from txt files...")
+        # 4. Fetch Links
         with open("images.txt", "r") as f:
             image_links = f.readlines()
 
@@ -146,8 +148,6 @@ def main():
         bg_link, track_data = get_file_with_cooling("images", image_links, track_data)
         if not bg_link:
             raise Exception("Images list khali hai ya sabhi images abhi 15 din ke cooling me hain!")
-        
-        print(f"[DEBUG] Selected Image Link: {bg_link}")
         bg_path = download_image_file(bg_link, "temp_bg.jpg")
 
         audio_link, track_data = get_file_with_cooling("audios", audio_links, track_data)
@@ -156,14 +156,17 @@ def main():
         # 6. Fetch Quote
         quote_text = get_free_quote_only()
 
-        # 7. Create Video
+        # 7. Create Video (User's Exact Logic Added Here)
         print(f"[DEBUG] Compiling Video {video_filename} with MoviePy...")
+        
         bg = ImageClip(bg_path).set_duration(DURATION).resize(height=1920).fl_image(lambda image: (image * 0.6).astype('uint8'))
+        
         full_display_text = f"\"{quote_text}\"\n\n{FIXED_AUTHOR}"
         txt = TextClip(full_display_text, fontsize=80, color='white', font='Arial-Bold', 
                        method='caption', size=(850, None)).set_duration(DURATION).set_position('center')
         
         final = CompositeVideoClip([bg, txt])
+        
         if audio_path:
             try:
                 audio = AudioFileClip(audio_path).subclip(0, min(DURATION, AudioFileClip(audio_path).duration))
@@ -173,12 +176,12 @@ def main():
         
         final.write_videofile(video_filename, fps=24, codec="libx264", audio_codec="aac")
 
-        # 8. Upload to GitHub Repo via API
+        # 8. Upload to GitHub Repo
         print(f"[DEBUG] Uploading {video_filename} to GitHub...")
         with open(video_filename, "rb") as f:
             update_github_file(repo, f"{VIDEO_FOLDER_PATH}/{video_filename}", f.read(), f"Upload {video_filename}")
         
-        # Append Quote to quotes.txt
+        # 9. Update quotes.txt & track.json
         try:
             q_file = repo.get_contents(QUOTES_FILE_PATH)
             old_quotes = q_file.decoded_content.decode('utf-8')
@@ -187,14 +190,13 @@ def main():
         except:
             repo.create_file(QUOTES_FILE_PATH, "Created quotes.txt", quote_text)
             
-        # 9. Update & Save track.json for next run
         track_data["current_video"] = current_video_num + 1
         updated_track_json = json.dumps(track_data, indent=4)
         update_github_file(repo, TRACK_FILE_PATH, updated_track_json, f"Update track.json post {video_filename}")
 
         print(f"Success: {video_filename} generated and uploaded.")
 
-        # Cleanup local temp files
+        # Cleanup
         os.remove(bg_path)
         if audio_path: os.remove(audio_path)
         os.remove(video_filename)
