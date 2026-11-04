@@ -11,7 +11,7 @@ from moviepy.editor import ImageClip, TextClip, AudioFileClip, CompositeVideoCli
 # ================= Configuration =================
 DURATION = 10
 FIXED_AUTHOR = "Lucas Hart"
-REPO_NAME = "Automation8248/Codvix"  # Repository name updated based on your link
+REPO_NAME = "Automation8248/Codvix"
 
 # Environment Variables
 GH_TOKEN = os.environ.get("GH_TOKEN")
@@ -20,9 +20,9 @@ TELEGRAM_FAILD_ID = os.environ.get("TELEGRAM_FAILD_ID")
 THREAD_ID = 8  # Fixed Thread ID for Telegram Alerts
 
 # GitHub Paths
-TRACK_FILE_PATH = "Video Generator/Lucas Hart/track.json"  # Updated Path
-CAPTION_FILE_PATH = "Lucas Hart/caption.txt"              # caption.txt file path
-VIDEO_FOLDER_PATH = "Lucas Hart/video"                    # video folder path
+TRACK_FILE_PATH = "Video Generator/Lucas Hart/track.json"
+CAPTION_FILE_PATH = "Lucas Hart/caption.txt"
+VIDEO_FOLDER_PATH = "Lucas Hart/video"
 # =================================================
 
 def send_telegram_error(error_msg):
@@ -31,11 +31,20 @@ def send_telegram_error(error_msg):
         print("Telegram tokens are missing. Cannot send alert.")
         return
     
+    # NEW UPDATED TELEGRAM MESSAGE FORMAT
+    error_text = (
+        f"🚨 *Automation Failed!*\n\n"
+        f"*Repo:* Codvix\n"
+        f"*Folder:* Video Generator\n"
+        f"*Account:* Lucas\n\n"
+        f"*Error:*\n`{error_msg}`"
+    )
+
     url = f"https://api.telegram.org/bot{TELEGRAM_FAILD_TOKEN}/sendMessage"
     payload = {
         "chat_id": TELEGRAM_FAILD_ID,
         "message_thread_id": THREAD_ID,
-        "text": f"🚨 *Lucas Hart Video Automation Failed!*\n\n`{error_msg}`",
+        "text": error_text,
         "parse_mode": "Markdown"
     }
     try:
@@ -95,7 +104,6 @@ def get_file_with_cooling(file_type, links_list, track_data):
         last_used_str = cooling_dict.get(link)
         if last_used_str:
             last_used_date = datetime.strptime(last_used_str, "%Y-%m-%d").date()
-            # 60 DAYS COOLING LOGIC
             if (today - last_used_date).days < 60:
                 continue
         available_links.append(link)
@@ -106,7 +114,6 @@ def get_file_with_cooling(file_type, links_list, track_data):
         return None, track_data
         
     selected_link = random.choice(available_links)
-    # Apply NEW 60-day cooling timestamp (Updates automatically if reused after 60 days)
     track_data[f"cooling_{file_type}"][selected_link] = today.strftime("%Y-%m-%d")
     return selected_link, track_data
 
@@ -158,7 +165,7 @@ def main():
         # 6. Fetch Quote
         quote_text = get_free_quote_only()
 
-        # 7. Create Video (User's Exact Logic Added Here)
+        # 7. Create Video
         print(f"[DEBUG] Compiling Video {video_filename} with MoviePy...")
         
         bg = ImageClip(bg_path).set_duration(DURATION).resize(height=1920).fl_image(lambda image: (image * 0.6).astype('uint8'))
@@ -192,7 +199,7 @@ def main():
         except:
             repo.create_file(CAPTION_FILE_PATH, "Created caption.txt", quote_text)
             
-        # 10. Update & Save track.json (Explicit Tracking Added)
+        # 10. Update & Save track.json
         track_data["current_video"] = current_video_num + 1
         track_data["last_generated_video"] = video_filename
         track_data["last_used_image"] = bg_link
