@@ -1,1 +1,12 @@
-
+{
+    "current_video": 2,
+    "cooling_images": {
+        "https://drive.google.com/uc?export=download&id=1od9YiPaUu5_PP-qHz4juZg1xbwW2C8zz": "2026-11-04"
+    },
+    "cooling_audios": {
+        "https://cdn.pixabay.com/audio/2025/07/17/audio_6a9fd411e6.mp3": "2026-11-04"
+    },
+    "last_generated_video": "shorts.1.mp4",
+    "last_used_image": "https://drive.google.com/uc?export=download&id=1od9YiPaUu5_PP-qHz4juZg1xbwW2C8zz",
+    "last_used_audio": "https://cdn.pixabay.com/audio/2025/07/17/audio_6a9fd411e6.mp3"
+}
