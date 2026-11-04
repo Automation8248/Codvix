@@ -1,15 +1,13 @@
 import os
-from playwright.sync_api import sync_playwright, TimeoutError
+from playwright.sync_api import sync_playwright
 
 def run(playwright):
-    # 1. Folders banayen jahan txt file aur video save hongi
+    # 1. Folders banayen
     os.makedirs("downloads", exist_ok=True)
     os.makedirs("videos", exist_ok=True)
 
     # 2. Browser aur screen recording setup
     browser = playwright.chromium.launch(headless=True)
-    
-    # Context me clipboard access permissions di gayi hain taaki copy link kaam kare
     context = browser.new_context(
         record_video_dir="videos/",
         record_video_size={"width": 1280, "height": 720},
@@ -23,13 +21,12 @@ def run(playwright):
     try:
         url = "https://drive.google.com/drive/folders/1pnRfQod0LWTG1Lc5PgYDoESsMXtIYtxX"
         page.goto(url)
+        print("Drive link open ho raha hai, load hone ka wait kar rahe hain...")
+        page.wait_for_timeout(8000) 
         
-        print("Drive link open ho raha hai, wait kar rahe hain...")
-        page.wait_for_timeout(8000)
-        
-        # Files load hone ka wait karein
+        # Files aane ka wait
         page.wait_for_selector('div[data-id], div[role="gridcell"]', timeout=40000)
-        page.wait_for_timeout(3000) 
+        page.wait_for_timeout(3000)
         
         files = page.locator('div[data-id][aria-label]').all()
         if not files:
@@ -41,31 +38,39 @@ def run(playwright):
             
         print(f"Total {len(files)} files/folders mile.")
         
-        # 3. Ctrl + A (Sabhi files ko select karna)
-        print("First file par click karke focus laa raha hai...")
-        files[0].click()
-        page.wait_for_timeout(1000)
+        # STEP 1: Pehli file ka exact (X, Y) position (box) nikalna
+        box = files[0].bounding_box()
+        if not box:
+            print("File screen par visible nahi hai.")
+            return
+            
+        x_center = box["x"] + box["width"] / 2
+        y_center = box["y"] + box["height"] / 2
+
+        # STEP 2: Manually Mouse hila kar Left Click karna (Focus ke liye)
+        print("Mouse ko pehli file par le ja raha hai aur Left click kar raha hai...")
+        page.mouse.move(x_center, y_center)
+        page.mouse.click(x_center, y_center, button="left")
+        page.wait_for_timeout(1500)
         
-        print("Ctrl+A daba raha hai...")
+        # STEP 3: Manually Keyboard se Ctrl+A dabana (Select All)
+        print("Keyboard se 'Ctrl+A' daba raha hai...")
         page.keyboard.press("Control+A")
-        page.wait_for_timeout(2000) # Select hone ka wait
+        page.wait_for_timeout(2000)
         
-        # 4. Right Click karna
-        print("Right click kar raha hai...")
-        files[0].click(button="right")
+        # STEP 4: Manually Mouse se usi location par Right Click karna
+        print("Mouse se wahi par Right Click kar raha hai...")
+        page.mouse.click(x_center, y_center, button="right")
         page.wait_for_timeout(2000) # Menu khulne ka wait
         
-        # 5. Share > Copy link dhundhna aur click karna
-        print("Menu mein 'Copy link' ya 'Share' dhundh raha hai...")
-        
+        # STEP 5: Menu me 'Copy link' par click karna
+        print("Menu mein 'Copy link' dhundh kar click kar raha hai...")
         copy_link_btn = page.locator('div[role="menuitem"]:has-text("Copy link")').first
         share_btn = page.locator('div[role="menuitem"]:has-text("Share")').first
         
         if copy_link_btn.is_visible():
-            print("'Copy link' option mil gaya, click kar raha hai...")
             copy_link_btn.click()
         elif share_btn.is_visible():
-            print("'Share' option mila, hover karke 'Copy link' nikal raha hai...")
             share_btn.hover()
             page.wait_for_timeout(1000)
             sub_copy = page.locator('div[role="menuitem"]:has-text("Copy link")').first
@@ -74,56 +79,50 @@ def run(playwright):
             else:
                 share_btn.click()
         else:
-            print("Menu nahi mila, direct Ctrl+C backup option use kar raha hai...")
+            print("Menu nahi mila, backup Ctrl+C daba raha hai...")
             page.keyboard.press("Control+C")
             
-        page.wait_for_timeout(3000) # Link copy hone ke liye time
+        print("Link copy hone ka wait kar raha hai...")
+        page.wait_for_timeout(4000) 
         
-        # 6. Clipboard se links nikalna (Headless Hack)
-        print("Clipboard se links nikal raha hai...")
-        copied_text = ""
+        # STEP 6: Clipboard se text manually 'Ctrl+V' karke nikalna
+        print("Screen par invisible text box banakar 'Ctrl+V' daba raha hai...")
+        page.evaluate('''() => {
+            const textarea = document.createElement('textarea');
+            textarea.id = 'clipboard-hack';
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '0';
+            document.body.appendChild(textarea);
+            textarea.focus();
+        }''')
+        page.wait_for_timeout(500)
+        page.keyboard.press("Control+V")
+        page.wait_for_timeout(1000)
         
-        try:
-            # Playwright ka direct clipboard API use karte hain
-            copied_text = page.evaluate("navigator.clipboard.readText()")
-        except:
-            pass
-            
-        if not copied_text.strip():
-            # Agar API fail ho jaye (headless hone ki wajah se), toh Textarea inject karke Ctrl+V karenge
-            print("API fail hui, Ctrl+V method try kar raha hai...")
-            page.evaluate('''() => {
-                const textarea = document.createElement('textarea');
-                textarea.id = 'clipboard-hack';
-                document.body.appendChild(textarea);
-                textarea.focus();
-            }''')
-            page.keyboard.press("Control+V")
-            page.wait_for_timeout(1000)
-            copied_text = page.locator('#clipboard-hack').input_value()
+        copied_text = page.locator('#clipboard-hack').input_value()
         
-        # 7. images.txt me save karna
+        # STEP 7: txt file me save karna
         txt_path = os.path.join("downloads", "images.txt")
         if copied_text.strip():
             with open(txt_path, "w", encoding="utf-8") as f:
                 f.write(copied_text)
-            print(f"Badiya! Saare links copy ho gaye aur '{txt_path}' me save ho gaye.")
+            print(f"Success! Saare links '{txt_path}' me save ho gaye.")
         else:
-            print("Koi link copy nahi hui. Video check karein.")
+            print("Error: Link copy nahi hui. Kripya video recording check karein.")
             with open(txt_path, "w", encoding="utf-8") as f:
-                f.write("Error: Link copy nahi ho paayi, kripya video recording check karein.")
+                f.write("Error: Link copy nahi hui.")
 
+        # Video record end hone ke liye wait
         page.wait_for_timeout(4000)
 
-    except TimeoutError:
-        print("TimeoutError: Load hone mein zyada time le raha hai.")
     except Exception as e:
         print(f"Unexpected Error aaya: {e}")
     finally:
         print("Browser close kar raha hai taaki video file safely save ho jaye...")
         context.close()
         browser.close()
-        print("Automation pura hua. Zip me images.txt aur video mil jayegi.")
+        print("Automation pura hua!")
 
 with sync_playwright() as playwright:
     run(playwright)
