@@ -1,0 +1,44 @@
+name: Manual Cloudinary Image Uploader
+
+on:
+  workflow_dispatch: # Sirf manual trigger
+
+permissions:
+  contents: write # Repo me files (link.txt, history.txt) wapas commit karne ke liye zaroori hai
+
+jobs:
+  upload-images:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install Dependencies
+        run: |
+          # Agar requirements.txt Image Uploader folder me hai:
+          pip install requests cloudinary
+
+      - name: Run Uploader Script
+        env:
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }} # (Optional) GitHub API limit badhane ke liye
+        run: |
+          cd "Image Uploader"
+          python main.py
+
+      - name: Commit and Push Changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add "Image Uploader/link.txt" "Image Uploader/history.txt"
+          # Sirf tab commit kare jab koi nayi file/link add hui ho
+          git commit -m "Auto-update: Added new Cloudinary links and updated history" || echo "No changes to commit"
+          git push
