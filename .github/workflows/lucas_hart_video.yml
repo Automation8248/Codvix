@@ -11,10 +11,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install System Dependencies (FFmpeg & ImageMagick)
+      - name: Install System Dependencies (FFmpeg, ImageMagick & Arial Font)
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick
+          # Arial font install karne ke liye Microsoft EULA ko auto-accept karna
+          echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+          sudo apt-get install -y ttf-mscorefonts-installer
+          sudo fc-cache -f -v
           # Fix ImageMagick policy for MoviePy TextClip in Ubuntu
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml
 
