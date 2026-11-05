@@ -1,10 +1,10 @@
 name: Manual Cloudinary Image Uploader
 
 on:
-  workflow_dispatch: # Sirf manual trigger
+  workflow_dispatch: 
 
 permissions:
-  contents: write # Repo me files (link.txt, history.txt) wapas commit karne ke liye zaroori hai
+  contents: write 
 
 jobs:
   upload-images:
@@ -21,15 +21,14 @@ jobs:
 
       - name: Install Dependencies
         run: |
-          # Agar requirements.txt Image Uploader folder me hai:
-          pip install requests cloudinary
+          python -m pip install --upgrade pip
+          pip install requests cloudinary gdown
 
       - name: Run Uploader Script
         env:
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }} # (Optional) GitHub API limit badhane ke liye
         run: |
           cd "Image Uploader"
           python main.py
@@ -38,7 +37,6 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add "Image Uploader/link.txt" "Image Uploader/history.txt"
-          # Sirf tab commit kare jab koi nayi file/link add hui ho
-          git commit -m "Auto-update: Added new Cloudinary links and updated history" || echo "No changes to commit"
+          git add "Image Uploader/new.txt"
+          git commit -m "Auto-update: Added new Cloudinary links" || echo "No changes to commit"
           git push
