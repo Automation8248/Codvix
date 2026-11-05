@@ -1,94 +1,78 @@
 import os
-import requests
+import zipfile
+import shutil
+import gdown
 import cloudinary
 import cloudinary.uploader
 
-# Cloudinary Setup
+# Cloudinary Setup (GitHub Secrets ya Env Variables se fetch karega)
 cloudinary.config(
     cloud_name=os.getenv('CLOUDINARY_CLOUD_NAME'),
     api_key=os.getenv('CLOUDINARY_API_KEY'),
     api_secret=os.getenv('CLOUDINARY_API_SECRET')
 )
 
-# GitHub Repo Details
-REPO_OWNER = "Automation8248"
-REPO_NAME = "Codvix"
-BASE_FOLDER_PATH = "Pixhub/Sales post/emergency fund"
-
-headers = {}
-gh_token = os.getenv('GH_TOKEN')
-if gh_token:
-    headers['Authorization'] = f"token {gh_token}"
-
-def get_all_images(path):
-    """Recursively fetch all image files from the given GitHub folder path."""
-    api_url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{path}"
-    response = requests.get(api_url, headers=headers)
-    
-    files_to_upload = []
-    
-    if response.status_code == 200:
-        items = response.json()
-        for item in items:
-            if item['type'] == 'file' and item['name'].lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
-                files_to_upload.append(item)
-            elif item['type'] == 'dir':
-                print(f"Scanning subfolder: {item['path']}...")
-                # Recursive call for subfolders
-                files_to_upload.extend(get_all_images(item['path']))
-    else:
-        print(f"Error fetching {path}: {response.text}")
-        
-    return files_to_upload
+# Drive File ID aur config
+DRIVE_FILE_ID = "1Z1PEqT_dbsH_Gg1DwYqloeuKIEmBObQ5"
+ZIP_FILENAME = "downloaded_images.zip"
+EXTRACT_FOLDER = "extracted_images"
+OUTPUT_FILE = "new.txt"
 
 def main():
-    print("Fetching file list and scanning subfolders from GitHub...")
-    all_images = get_all_images(BASE_FOLDER_PATH)
-    print(f"Total images found: {len(all_images)}")
+    # Step 1: Google Drive se ZIP file download karna
+    drive_url = f"https://drive.google.com/uc?id={DRIVE_FILE_ID}"
+    print(f"Downloading ZIP file from Google Drive (ID: {DRIVE_FILE_ID})...")
     
-    output_file = "link.txt"
-    history_file = "history.txt"
+    # gdown public Drive links ko easily download kar leta hai
+    gdown.download(drive_url, ZIP_FILENAME, quiet=False)
     
-    # Load previously uploaded files to skip duplicates
-    uploaded_history = set()
-    if os.path.exists(history_file):
-        with open(history_file, 'r') as h_file:
-            uploaded_history = set(h_file.read().splitlines())
-            
-    uploaded_count = 0
+    if not os.path.exists(ZIP_FILENAME):
+        print("Error: ZIP file download fail ho gayi.")
+        return
 
-    with open(output_file, 'a') as file_out, open(history_file, 'a') as hist_out:
-        for file in all_images:
-            file_path = file['path'] # Unique GitHub path
-            
-            # Duplicate Skip Check
-            if file_path in uploaded_history:
-                print(f"Skipping (Already uploaded): {file['name']}")
-                continue
-                
-            download_url = file['download_url']
-            print(f"Uploading: {file['name']} to Kavlio folder...")
-            
-            try:
-                upload_result = cloudinary.uploader.upload(
-                    download_url,
-                    folder="Kavlio"
-                )
-                
-                secure_url = upload_result.get('secure_url')
-                
-                # Save link and update history
-                file_out.write(secure_url + "\n")
-                hist_out.write(file_path + "\n")
-                
-                print(f"Success: {secure_url}")
-                uploaded_count += 1
-                uploaded_history.add(file_path)
-                
-            except Exception as e:
-                print(f"Failed to upload {file['name']}: {str(e)}")
+    # Step 2: ZIP file ko unzip (extract) karna
+    print("\nUnzipping the file...")
+    os.makedirs(EXTRACT_FOLDER, exist_ok=True)
+    with zipfile.ZipFile(ZIP_FILENAME, 'r') as zip_ref:
+        zip_ref.extractall(EXTRACT_FOLDER)
+        
+    print("Unzip complete. Starting Cloudinary upload...\n")
+
+    # Step 3: Images ko Cloudinary me upload karna aur link save karna
+    uploaded_count = 0
+    with open(OUTPUT_FILE, 'a') as file_out:
+        # os.walk use karke agar zip ke andar subfolders hain, to unhe bhi scan karega
+        for root, dirs, files in os.walk(EXTRACT_FOLDER):
+            for file in files:
+                if file.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.gif')):
+                    file_path = os.path.join(root, file)
+                    print(f"Uploading: {file} to Kavlio folder...")
                     
-    print(f"\nTask Complete! {uploaded_count} new images uploaded and saved.")
+                    try:
+                        upload_result = cloudinary.uploader.upload(
+                            file_path,
+                            folder="Kavlio"
+                        )
+                        
+                        secure_url = upload_result.get('secure_url')
+                        
+                        # Save link to new.txt
+                        file_out.write(secure_url + "\n")
+                        print(f"Success: {secure_url}")
+                        uploaded_count += 1
+                        
+                    except Exception as e:
+                        print(f"Failed to upload {file}: {str(e)}")
+
+    print(f"\nTask Complete! Total {uploaded_count} image links saved to {OUTPUT_FILE}.")
+
+    # Step 4: Clean up (Downloaded ZIP aur extracted folder ko delete karna)
+    print("Cleaning up temporary local files...")
+    if os.path.exists(ZIP_FILENAME):
+        os.remove(ZIP_FILENAME)
+    if os.path.exists(EXTRACT_FOLDER):
+        shutil.rmtree(EXTRACT_FOLDER)
+    print("Cleanup done!")
 
 if __name__ == "__main__":
     main()
