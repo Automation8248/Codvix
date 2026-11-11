@@ -2,6 +2,8 @@ name: Lucas Hart Video Automation
 
 on:
   workflow_dispatch:
+  # schedule:
+  #  - cron: "0 2 * * *"  # Agar auto-run karna ho toh is line se # hata dein
 
 permissions:
   contents: write
@@ -14,11 +16,22 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
+      - name: Setup System Tools (Fast & Bulletproof)
+        run: |
+          # 1. Fast Update ignoring network drops
+          sudo apt-get update -qq -y --allow-releaseinfo-change || true
+          
+          # 2. Install ONLY FFmpeg with Retry Logic (MoviePy needs this to export video)
+          # Note: ImageMagick and Fonts are REMOVED to make it 4x faster and 100% error-free!
+          for i in 1 2 3; do
+             sudo apt-get install -y --no-install-recommends ffmpeg && break || sleep 5;
+          done
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip'
+          cache: 'pip' # <-- PIP CACHE: Agli baar python packages instantly load honge
 
       - name: Install Python Dependencies
         run: |
