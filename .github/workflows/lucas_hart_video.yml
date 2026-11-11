@@ -11,15 +11,22 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install System Dependencies (FFmpeg, ImageMagick & Arial Font)
+      - name: Bulletproof System Dependencies Setup
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ffmpeg imagemagick
-          # Arial font install karne ke liye Microsoft EULA ko auto-accept karna
+          # 1. Update list but IGNORE network resolution errors (--allow-releaseinfo-change)
+          sudo apt-get update -y --allow-releaseinfo-change -qq || true
+          
+          # 2. Retry Logic for apt-get install (up to 3 times) to handle temporary network drops
+          for i in 1 2 3; do
+             sudo apt-get install -y --no-install-recommends ffmpeg imagemagick && break || sleep 10;
+          done
+
+          # 3. Handle Arial Fonts EULA silently & safely
           echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
-          sudo apt-get install -y ttf-mscorefonts-installer
+          sudo apt-get install -y --no-install-recommends ttf-mscorefonts-installer || true
           sudo fc-cache -f -v
-          # Fix ImageMagick policy for MoviePy TextClip (bina fail hue)
+
+          # 4. Handle ImageMagick Policy securely without failing if file is missing or changed by Ubuntu updates
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
           sudo sed -i 's/none/read,write/g' /etc/ImageMagick-*/policy.xml || true
 
@@ -27,6 +34,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+          cache: 'pip' # <-- PIP CACHE ADD KIYA HAI
 
       - name: Install Python Dependencies & Run Script
         env:
