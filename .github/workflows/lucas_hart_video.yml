@@ -2,48 +2,39 @@ name: Lucas Hart Video Automation
 
 on:
   workflow_dispatch:
-  # schedule:
-  #  - cron: "0 2 * * *"  # Agar auto-run karna ho toh is line se # hata dein
-
-permissions:
-  contents: write
 
 jobs:
   generate_video:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Code
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup System Tools (Fast & Bulletproof)
+      - name: Install System Dependencies (FFmpeg, ImageMagick & Arial Font)
         run: |
-          # 1. Fast Update ignoring network drops
-          sudo apt-get update -qq -y --allow-releaseinfo-change || true
-          
-          # 2. Install ONLY FFmpeg with Retry Logic (MoviePy needs this to export video)
-          # Note: ImageMagick and Fonts are REMOVED to make it 4x faster and 100% error-free!
-          for i in 1 2 3; do
-             sudo apt-get install -y --no-install-recommends ffmpeg && break || sleep 5;
-          done
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg imagemagick
+          # Arial font install karne ke liye Microsoft EULA ko auto-accept karna
+          echo ttf-mscorefonts-installer msttcorefonts/accepted-mscorefonts-eula select true | sudo debconf-set-selections
+          sudo apt-get install -y ttf-mscorefonts-installer
+          sudo fc-cache -f -v
+          # Fix ImageMagick policy for MoviePy TextClip (bina fail hue)
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-6/policy.xml || true
+          sudo sed -i 's/none/read,write/g' /etc/ImageMagick-*/policy.xml || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
-          cache: 'pip' # <-- PIP CACHE: Agli baar python packages instantly load honge
 
-      - name: Install Python Dependencies
-        run: |
-          cd "Video Generator/Lucas Hart"
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run Automation Script
+      - name: Install Python Dependencies & Run Script
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           TELEGRAM_FAILD_TOKEN: ${{ secrets.TELEGRAM_FAILD_TOKEN }}
           TELEGRAM_FAILD_ID: ${{ secrets.TELEGRAM_FAILD_ID }}
         run: |
           cd "Video Generator/Lucas Hart"
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
           python main.py
