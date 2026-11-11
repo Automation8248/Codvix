@@ -4,11 +4,9 @@ import json
 import random
 import traceback
 import re
-import textwrap
 from datetime import datetime
 from github import Github
-from moviepy.editor import ImageClip, AudioFileClip
-from PIL import Image, ImageDraw, ImageFont, ImageEnhance
+from moviepy.editor import ImageClip, TextClip, AudioFileClip, CompositeVideoClip
 
 # ================= Configuration =================
 DURATION = 10
@@ -63,36 +61,32 @@ def get_headers():
     }
 
 def download_image_file(link, output_path):
-    """Downloads an image from a Google Drive link or any direct URL."""
     file_id_match = re.search(r'id=([a-zA-Z0-9_-]+)', link) or re.search(r'/d/([a-zA-Z0-9_-]+)', link)
-    
-    if file_id_match:
-        file_id = file_id_match.group(1)
-        url = f"https://drive.google.com/uc?id={file_id}"
-    else:
-        url = link
-
+    url = f"https://drive.google.com/uc?id={file_id_match.group(1)}" if file_id_match else link
     res = requests.get(url, headers=get_headers(), allow_redirects=True)
     if res.status_code == 200:
-        with open(output_path, "wb") as f:
-            f.write(res.content)
+        with open(output_path, "wb") as f: f.write(res.content)
         return output_path
     raise Exception(f"Failed to download image. Status code: {res.status_code}")
 
 def download_audio_file(link, output_path):
-    """Downloads audio from a direct link."""
     res = requests.get(link, headers=get_headers(), allow_redirects=True)
     if res.status_code == 200:
-        with open(output_path, "wb") as f:
-            f.write(res.content)
+        with open(output_path, "wb") as f: f.write(res.content)
         return output_path
     raise Exception("Failed to download direct audio file.")
 
-def get_file_with_cooling(file_type, links_list, track_data):
-    """Returns a link that is not in the 60-day cooling period and updates track_data."""
+def get_file_with_cooling(file_type, folder_name, history):
+    """Filters by 60-day cooling, downloads the file, updates tracking, and returns local path."""
     today = datetime.now().date()
-    cooling_dict = track_data.setdefault(f"cooling_{file_type}", {})
+    cooling_dict = history.setdefault(f"cooling_{file_type}", {})
     
+    # Read links based on file_type
+    if file_type == "images":
+        with open("images.txt", "r") as f: links_list = f.readlines()
+    else:
+        with open("bg_link.txt", "r") as f: links_list = f.readlines()
+        
     available_links = []
     for link in links_list:
         link = link.strip()
@@ -105,179 +99,117 @@ def get_file_with_cooling(file_type, links_list, track_data):
                 continue
         available_links.append(link)
         
-    print(f"[DEBUG] {file_type.capitalize()} available after 60-day cooling filter: {len(available_links)}")
-    
-    if not available_links:
-        return None, track_data
+    print(f"[DEBUG] {file_type.capitalize()} available after 60-day cooling: {len(available_links)}")
+    if not available_links: return None
         
     selected_link = random.choice(available_links)
-    track_data[f"cooling_{file_type}"][selected_link] = today.strftime("%Y-%m-%d")
-    return selected_link, track_data
+    history[f"cooling_{file_type}"][selected_link] = today.strftime("%Y-%m-%d")
+    
+    # Download and update explicit tracking
+    if file_type == "images":
+        history["last_used_image"] = selected_link
+        return download_image_file(selected_link, "temp_bg.jpg")
+    else:
+        history["last_used_audio"] = selected_link
+        return download_audio_file(selected_link, "temp_audio.mp3")
 
+# --- USER'S EXACT API & VIDEO LOGIC ---
 def get_free_quote_only():
     try:
         res = requests.get("https://zenquotes.io/api/random", headers=get_headers(), timeout=10)
         return res.json()[0]['q']
-    except: 
-        return "Your only limit is your mind."
+    except: return "Your only limit is your mind."
+
+def create_video(quote_text, history):
+    bg_path = get_file_with_cooling("images", "images", history)
+    if not bg_path: 
+        raise Exception("Images folder khali hai ya sabhi images abhi 60 din ke cooling me hain. Kuch nayi images add karein!")
+
+    bg = ImageClip(bg_path).set_duration(DURATION).resize(height=1920).fl_image(lambda image: (image * 0.6).astype('uint8'))
+    
+    full_display_text = f"\"{quote_text}\"\n\n{FIXED_AUTHOR}"
+    txt = TextClip(full_display_text, fontsize=80, color='white', font='Arial-Bold', 
+                   method='caption', size=(850, None)).set_duration(DURATION).set_position('center')
+    
+    audio_path = get_file_with_cooling("ringtones", "ringtones", history)
+    audio = None
+    if audio_path:
+        try: 
+            audio = AudioFileClip(audio_path).subclip(0, DURATION)
+        except Exception as e: 
+            print(f"Audio Load Error: {e}")
+    else:
+        print("Bina audio ke video ban rahi hai (Ringtones cooling me hain ya folder khali hai).")
+    
+    final = CompositeVideoClip([bg, txt])
+    if audio: final = final.set_audio(audio)
+    
+    final.write_videofile("final_short.mp4", fps=24, codec="libx264", audio_codec="aac")
+    return "final_short.mp4"
+# ---------------------------------------
 
 def update_github_file(repo, path, content, message):
-    """Creates or updates a file directly in the GitHub repository."""
     try:
         file = repo.get_contents(path)
         repo.update_file(path, message, content, file.sha)
     except:
         repo.create_file(path, message, content)
 
-def create_video_with_pillow(quote_text, bg_path, audio_path, output_filename):
-    print("[DEBUG] Generating frame with Pillow (No ImageMagick needed)...")
-    
-    # 1. Download Font Safely
-    font_path = "font.ttf"
-    if not os.path.exists(font_path):
-        print("[DEBUG] Downloading Font...")
-        font_url = "https://raw.githubusercontent.com/dejavu-fonts/dejavu-fonts/master/ttf/DejaVuSans-Bold.ttf"
-        r = requests.get(font_url, allow_redirects=True)
-        if r.status_code == 200:
-            with open(font_path, "wb") as f: 
-                f.write(r.content)
-        else:
-            raise Exception(f"Failed to download font! Status code: {r.status_code}")
-
-    # 2. Process Image (Crop 9:16 and Darken)
-    img = Image.open(bg_path).convert("RGB")
-    target_w, target_h = 1080, 1920
-    img_ratio = img.width / img.height
-    target_ratio = target_w / target_h
-    
-    if img_ratio > target_ratio:
-        new_w = int(img.height * target_ratio)
-        left = (img.width - new_w) // 2
-        img = img.crop((left, 0, left + new_w, img.height))
-    else:
-        new_h = int(img.width / target_ratio)
-        top = (img.height - new_h) // 2
-        img = img.crop((0, top, img.width, top + new_h))
-        
-    img = img.resize((target_w, target_h), Image.Resampling.LANCZOS)
-    enhancer = ImageEnhance.Brightness(img)
-    img = enhancer.enhance(0.5)
-
-    # 3. Draw Text
-    draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(font_path, 75)
-    
-    wrapped_quote = textwrap.fill(f'"{quote_text}"', width=22)
-    full_text = f"{wrapped_quote}\n\n{FIXED_AUTHOR}"
-    
-    bbox = draw.multiline_textbbox((0, 0), full_text, font=font, align="center")
-    text_w = bbox[2] - bbox[0]
-    text_h = bbox[3] - bbox[1]
-    x = (target_w - text_w) / 2
-    y = (target_h - text_h) / 2
-    
-    draw.multiline_text((x, y), full_text, font=font, fill="white", align="center")
-    
-    # Save processed frame
-    final_frame_path = "processed_bg.jpg"
-    img.save(final_frame_path)
-
-    # 4. Generate Video using MoviePy (Image + Audio)
-    print(f"[DEBUG] Compiling Video {output_filename}...")
-    clip = ImageClip(final_frame_path).set_duration(DURATION)
-    
-    if audio_path:
-        try:
-            audio = AudioFileClip(audio_path).subclip(0, min(DURATION, AudioFileClip(audio_path).duration))
-            clip = clip.set_audio(audio)
-        except Exception as e: 
-            print(f"Audio Edit Error: {e}")
-            
-    clip.write_videofile(output_filename, fps=24, codec="libx264", audio_codec="aac")
-    
-    # Clean temp files used in generation
-    if os.path.exists(final_frame_path): os.remove(final_frame_path)
-    if os.path.exists(font_path): os.remove(font_path)
-
 def main():
     try:
-        # 1. Initialize GitHub with Dual Repositories
-        if not GH_TOKEN:
-            raise Exception("GH_TOKEN is not set.")
+        if not GH_TOKEN: raise Exception("GH_TOKEN is not set.")
         g = Github(GH_TOKEN)
         
         track_repo = g.get_repo(TRACKING_REPO_NAME)
         target_repo = g.get_repo(TARGET_REPO_NAME)
         
-        # 2. Load tracking state from TRACK_REPO (Codvix)
+        # Load History
         try:
             track_file = track_repo.get_contents(TRACK_FILE_PATH)
             track_data = json.loads(track_file.decoded_content.decode('utf-8'))
         except:
-            track_data = {"current_video": 1, "cooling_images": {}, "cooling_audios": {}}
+            track_data = {"current_video": 1, "cooling_images": {}, "cooling_ringtones": {}}
 
-        # 3. Determine Video Name (1 to 90 Loop)
+        # Determine Loop Name
         current_video_num = track_data.get("current_video", 1)
-        if current_video_num > 90:
-            current_video_num = 1
+        if current_video_num > 90: current_video_num = 1
         video_filename = f"shorts.{current_video_num}.mp4"
         
-        # 4. Fetch Links
-        with open("images.txt", "r") as f:
-            image_links = f.readlines()
-
-        with open("bg_link.txt", "r") as f:
-            audio_links = f.readlines()
-
-        # 5. Get Cooled Assets & Download
-        bg_link, track_data = get_file_with_cooling("images", image_links, track_data)
-        if not bg_link:
-            raise Exception("Images list khali hai ya sabhi images abhi 60 din ke cooling me hain!")
-        bg_path = download_image_file(bg_link, "temp_bg.jpg")
-
-        audio_link, track_data = get_file_with_cooling("audios", audio_links, track_data)
-        audio_path = download_audio_file(audio_link, "temp_audio.mp3") if audio_link else None
-
-        # 6. Fetch Quote
+        # Quote Fetch
         quote_text = get_free_quote_only()
 
-        # 7. Create Video (Pillow Method - No ImageMagick Dependency)
-        create_video_with_pillow(quote_text, bg_path, audio_path, video_filename)
+        # Generate Video using your exact logic
+        print(f"[DEBUG] Compiling Video {video_filename}...")
+        generated_video_name = create_video(quote_text, track_data)
+        os.rename(generated_video_name, video_filename)
 
-        # 8. Upload Video to TARGET_REPO (Postza)
+        # Upload Video
         print(f"[DEBUG] Uploading {video_filename} to {TARGET_REPO_NAME}...")
         with open(video_filename, "rb") as f:
             update_github_file(target_repo, f"{VIDEO_FOLDER_PATH}/{video_filename}", f.read(), f"Upload {video_filename}")
         
-        # 9. Update caption.txt in TARGET_REPO (Postza)
+        # Upload Caption
         try:
             q_file = target_repo.get_contents(CAPTION_FILE_PATH)
-            old_quotes = q_file.decoded_content.decode('utf-8')
-            new_quotes = old_quotes + f"\n{quote_text}"
+            new_quotes = q_file.decoded_content.decode('utf-8') + f"\n{quote_text}"
             target_repo.update_file(CAPTION_FILE_PATH, f"Added caption for {video_filename}", new_quotes, q_file.sha)
         except:
             target_repo.create_file(CAPTION_FILE_PATH, "Created caption.txt", quote_text)
             
-        # 10. Update & Save track.json in TRACK_REPO (Codvix)
+        # Update JSON Track
         track_data["current_video"] = current_video_num + 1
         track_data["last_generated_video"] = video_filename
-        track_data["last_used_image"] = bg_link
-        if audio_link:
-            track_data["last_used_audio"] = audio_link
-            
-        updated_track_json = json.dumps(track_data, indent=4)
-        update_github_file(track_repo, TRACK_FILE_PATH, updated_track_json, f"Update track.json post {video_filename}")
+        update_github_file(track_repo, TRACK_FILE_PATH, json.dumps(track_data, indent=4), f"Update track.json post {video_filename}")
 
-        print(f"Success: {video_filename} generated and uploaded successfully.")
+        print(f"Success: {video_filename} generated and uploaded.")
 
-        # Cleanup locals
+        # Cleanup locally
         if os.path.exists("temp_bg.jpg"): os.remove("temp_bg.jpg")
         if os.path.exists("temp_audio.mp3"): os.remove("temp_audio.mp3")
         if os.path.exists(video_filename): os.remove(video_filename)
 
     except Exception as e:
-        error_trace = traceback.format_exc()
-        print(error_trace)
+        print(traceback.format_exc())
         send_telegram_error(str(e))
 
 if __name__ == "__main__":
