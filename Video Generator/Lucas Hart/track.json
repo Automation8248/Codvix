@@ -1,5 +1,5 @@
 {
-    "current_video": 31,
+    "current_video": 32,
     "cooling_images": {
         "https://drive.google.com/uc?export=download&id=1od9YiPaUu5_PP-qHz4juZg1xbwW2C8zz": "2026-11-04",
         "https://drive.google.com/uc?export=download&id=1dFDCaObGt4sYpQRgBvwTyv9jKIkhPKOI": "2026-11-04",
@@ -30,14 +30,15 @@
         "https://drive.google.com/uc?export=download&id=1GIP72x9mBZSp5rBqb2QopPlrMPOsHs6s": "2026-11-23",
         "https://drive.google.com/uc?export=download&id=1hUfdGXb9pjPdeTDE7c6FP8N_GCgsGNVw": "2026-11-24",
         "https://drive.google.com/uc?export=download&id=123o9QzWtR_NeaxgSrlDmn7pV1_SRFZ00": "2026-11-25",
-        "https://drive.google.com/uc?export=download&id=1JUNxuGdEi3zmi5Zv5zHoxocUdeiFhcTg": "2026-11-26"
+        "https://drive.google.com/uc?export=download&id=1JUNxuGdEi3zmi5Zv5zHoxocUdeiFhcTg": "2026-11-26",
+        "https://drive.google.com/uc?export=download&id=1cYv71AOl2sSrdolxEwUGz_GLXAi-_lJi": "2026-11-27"
     },
     "cooling_audios": {
         "https://cdn.pixabay.com/audio/2025/07/17/audio_6a9fd411e6.mp3": "2026-11-04"
     },
-    "last_generated_video": "shorts.30.mp4",
-    "last_used_image": "https://drive.google.com/uc?export=download&id=1JUNxuGdEi3zmi5Zv5zHoxocUdeiFhcTg",
-    "last_used_audio": "https://cdn.pixabay.com/audio/2023/01/21/audio_bdbf6fb079.mp3",
+    "last_generated_video": "shorts.31.mp4",
+    "last_used_image": "https://drive.google.com/uc?export=download&id=1cYv71AOl2sSrdolxEwUGz_GLXAi-_lJi",
+    "last_used_audio": "https://cdn.pixabay.com/audio/2026/02/12/audio_6bc4e829ac.mp3",
     "cooling_ringtones": {
         "https://cdn.pixabay.com/audio/2023/01/01/audio_816821e627.mp3": "2026-11-04",
         "https://cdn.pixabay.com/audio/2026/07/08/audio_8e046f78bd.mp3": "2026-11-04",
@@ -67,6 +68,7 @@
         "https://cdn.pixabay.com/audio/2025/03/21/audio_6b2cb2333e.mp3": "2026-11-23",
         "https://cdn.pixabay.com/audio/2025/10/23/audio_9178cbdbb8.mp3": "2026-11-24",
         "https://cdn.pixabay.com/audio/2026/10/05/audio_a3acd158f9.mp3": "2026-11-25",
-        "https://cdn.pixabay.com/audio/2023/01/21/audio_bdbf6fb079.mp3": "2026-11-26"
+        "https://cdn.pixabay.com/audio/2023/01/21/audio_bdbf6fb079.mp3": "2026-11-26",
+        "https://cdn.pixabay.com/audio/2026/02/12/audio_6bc4e829ac.mp3": "2026-11-27"
     }
 }
